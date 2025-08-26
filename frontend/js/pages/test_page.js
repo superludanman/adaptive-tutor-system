@@ -36,10 +36,11 @@ async function initializePage() {
             console.log('加载默认测试内容');
         }
     
-    let topicId = topicData.id;
+    let topicId = topicData && topicData.id ? topicData.id : null;
     
     // 如果没有topic参数，且查询字符串只有一个值，则使用该值
     if (!topicId) {
+        const urlParams = new URLSearchParams(window.location.search);
         // 获取所有参数的键
         const keys = Array.from(urlParams.keys());
         // 如果没有键（如?1_1），则使用整个查询字符串
@@ -132,7 +133,9 @@ function setupSubmitLogic() {
         submitButton.textContent = '批改中...';
         
         try {
-            const topicId = new URLSearchParams(window.location.search).get('topic');
+            // 使用已解密的topicId而不是直接从URL获取加密参数
+            const topicData = getUrlParam('topic');
+            const topicId = topicData && topicData.id ? topicData.id : null;
             if (!topicId) throw new Error("主题ID无效。");
             
             const submissionData = {
