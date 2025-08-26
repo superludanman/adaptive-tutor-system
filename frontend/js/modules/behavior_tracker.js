@@ -7,6 +7,7 @@
  *   code_edit（Monaco 编辑器防抖 2s）、ai_help_request（立即）、test_submission（立即，包含 code）、dom_element_select（立即，iframe 支持）、user_idle（60s）、page_focus_change（visibility）
  * - 组装标准化 payload 并可靠发送到后端 /api/v1/behavior/log
  * - 优先使用 navigator.sendBeacon；在不支持时 fallback 到 fetch(..., { keepalive: true })
+ * - 新增代码改动监控功能，用于分析用户编程行为
  *
  * 注意：
  * - 本文件不修改现有 HTML。脚本提供自动初始化尝试（initAuto），但更可靠的方式是：在页面创建 Monaco 编辑器后显式调用 tracker.initEditors(...) 与 tracker.initTestActions(...)
@@ -23,6 +24,17 @@ class BehaviorTracker {
     // code_edit 防抖时长（ms）
     this.debounceMs = 2000;
     this.idleTimer = null;
+    
+    // 代码改动监控相关属性
+    this.codeChangeHistory = [];
+    this.lastChangeTime = Date.now();
+    this.codeStats = {
+      totalChanges: 0,
+      htmlChanges: 0,
+      cssChanges: 0,
+      jsChanges: 0,
+      startTime: Date.now()
+    };
   }
 
   // -------------------- 核心发送函数 --------------------
@@ -78,6 +90,182 @@ class BehaviorTracker {
     };
 
     this._sendPayload(payload);
+  }
+  // -------------------- 代码改动监控功能 --------------------
+  /**
+   * 初始化代码改动监控
+   * @param {Object} editors - 编辑器实例对象 { html: editor, css: editor, js: editor }
+   */
+  initCodeChangeTracking(editors) {
+    if (!editors) {
+      console.warn('[BehaviorTracker] 无编辑器实例，无法初始化代码改动监控');
+      return;
+    }
+
+    try {
+      // 为每个编辑器设置内容变化监听
+      if (editors.html && typeof editors.html.onDidChangeModelContent === 'function') {
+        editors.html.onDidChangeModelContent(() => {
+          this._recordCodeChange('html', editors.html.getValue());
+        });
+      }
+      if (editors.css && typeof editors.css.onDidChangeModelContent === 'function') {
+        editors.css.onDidChangeModelContent(() => {
+          this._recordCodeChange('css', editors.css.getValue());
+        });
+      }
+      if (editors.js && typeof editors.js.onDidChangeModelContent === 'function') {
+        editors.js.onDidChangeModelContent(() => {
+          this._recordCodeChange('js', editors.js.getValue());
+        });
+      }
+
+      console.log('[BehaviorTracker] 代码改动监控已初始化');
+      
+      // 启动定期报告
+      this._startPeriodicReporting();
+      
+    } catch (e) {
+      console.warn('[BehaviorTracker] 初始化代码改动监控时出错：', e);
+    }
+  }
+
+  /**
+   * 记录代码改动
+   * @param {string} editorType - 编辑器类型 ('html', 'css', 'js')
+   * @param {string} content - 编辑器内容
+   */
+  _recordCodeChange(editorType, content) {
+    const now = Date.now();
+    const timeSinceLastChange = now - this.lastChangeTime;
+    this.lastChangeTime = now;
+
+    // 计算代码指标
+    const lines = content.split('\n').length;
+    const length = content.length;
+
+    // 创建改动记录
+    const changeRecord = {
+      timestamp: now,
+      editor: editorType,
+      codeLength: length,
+      lineCount: lines,
+      timeSinceLastChange: timeSinceLastChange
+    };
+
+    // 添加到历史
+    this.codeChangeHistory.push(changeRecord);
+
+    // 更新统计
+    this.codeStats.totalChanges++;
+    this.codeStats[`${editorType}Changes`]++;
+
+    // 输出到控制台
+    this._logCodeChangeToConsole(changeRecord);
+
+    // 同时发送标准 code_edit 事件（防抖的）
+    this._debouncedCodeEdit(editorType, content);
+  }
+
+  // 防抖的 code_edit 事件上报
+  _debouncedCodeEdit = debounce((editorType, content) => {
+    this.logEvent('code_edit', {
+      editorName: editorType,
+      newLength: content ? content.length : 0,
+      lineCount: content.split('\n').length
+    });
+  }, this.debounceMs);
+
+  // 输出代码改动的控制台日志
+  _logCodeChangeToConsole(changeRecord) {
+    const time = new Date(changeRecord.timestamp).toLocaleTimeString();
+    console.log(
+      `%c代码改动监控%c [${time}] %c${changeRecord.editor.toUpperCase()}%c: ${changeRecord.codeLength}字符, ${changeRecord.lineCount}行, 间隔: ${changeRecord.timeSinceLastChange}ms`,
+      'background: #4dabf7; color: white; padding: 2px 4px; border-radius: 3px;',
+      'color: #666;',
+      'color: #339af0; font-weight: bold;',
+      'color: default;'
+    );
+  }
+
+  // 启动定期报告
+  _startPeriodicReporting() {
+    // 每30秒报告一次
+    setInterval(() => this._reportCodeChangeSummary(), 30000);
+  }
+
+  // 报告代码改动摘要
+  _reportCodeChangeSummary() {
+    if (this.codeChangeHistory.length === 0) return;
+
+    const sessionDuration = Math.round((Date.now() - this.codeStats.startTime) / 1000);
+    const changesPerMinute = Math.round((this.codeStats.totalChanges / sessionDuration) * 60);
+
+    console.groupCollapsed(`%c代码改动摘要 - ${new Date().toLocaleTimeString()}`, 'font-weight: bold; color: #1864ab;');
+    console.log(`会话时长: ${sessionDuration}秒`);
+    console.log(`总改动次数: ${this.codeStats.totalChanges}`);
+    console.log(`每分钟改动: ${changesPerMinute}次`);
+    console.log(`HTML改动: ${this.codeStats.htmlChanges}`);
+    console.log(`CSS改动: ${this.codeStats.cssChanges}`);
+    console.log(`JS改动: ${this.codeStats.jsChanges}`);
+    
+    // 计算平均编辑间隔
+    if (this.codeChangeHistory.length > 1) {
+      const intervals = this.codeChangeHistory
+        .filter((_, i) => i > 0)
+        .map(record => record.timeSinceLastChange);
+      
+      const avgInterval = Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length);
+      console.log(`平均编辑间隔: ${avgInterval}ms`);
+    }
+    
+    console.groupEnd();
+  }
+
+  /**
+   * 获取代码改动分析数据
+   * @returns {Object} 代码改动统计数据
+   */
+  getCodeChangeAnalysis() {
+    const sessionDuration = Math.round((Date.now() - this.codeStats.startTime) / 1000);
+    const changesPerMinute = this.codeStats.totalChanges > 0 ? 
+      Math.round((this.codeStats.totalChanges / sessionDuration) * 60) : 0;
+
+    // 计算平均编辑间隔
+    let avgInterval = 0;
+    if (this.codeChangeHistory.length > 1) {
+      const intervals = this.codeChangeHistory
+        .filter((_, i) => i > 0)
+        .map(record => record.timeSinceLastChange);
+      
+      avgInterval = Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length);
+    }
+
+    return {
+      sessionDuration,
+      totalChanges: this.codeStats.totalChanges,
+      changesPerMinute,
+      htmlChanges: this.codeStats.htmlChanges,
+      cssChanges: this.codeStats.cssChanges,
+      jsChanges: this.codeStats.jsChanges,
+      avgInterval,
+      changeHistory: this.codeChangeHistory
+    };
+  }
+
+  /**
+   * 清空代码改动历史（可用于重置或开始新的会话）
+   */
+  clearCodeChangeHistory() {
+    this.codeChangeHistory = [];
+    this.codeStats = {
+      totalChanges: 0,
+      htmlChanges: 0,
+      cssChanges: 0,
+      jsChanges: 0,
+      startTime: Date.now()
+    };
+    console.log('[BehaviorTracker] 代码改动历史已清空');
   }
 
   // -------------------- 编辑器（Monaco）相关 --------------------

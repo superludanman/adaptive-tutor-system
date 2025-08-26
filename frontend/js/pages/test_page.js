@@ -110,6 +110,9 @@ function initializeEditors(startCode) {
                 window.editorState.jsEditor.setValue(window.editorState.js);
             }
             
+            // 初始化代码改动监控
+            initCodeChangeTracking();
+
             // 触发预览更新
             if (typeof updateLocalPreview === 'function') {
                 updateLocalPreview();
@@ -121,6 +124,27 @@ function initializeEditors(startCode) {
 }
 
 
+// 初始化代码改动监控
+function initCodeChangeTracking() {
+    if (window.editorState && tracker && typeof tracker.initCodeChangeTracking === 'function') {
+        const editors = {
+            html: window.editorState.htmlEditor,
+            css: window.editorState.cssEditor,
+            js: window.editorState.jsEditor
+        };
+        
+        tracker.initCodeChangeTracking(editors);
+        console.log('代码改动监控已启动');
+        
+        // 示例：定期获取分析数据（可根据需要调整）
+        setInterval(() => {
+            const analysis = tracker.getCodeChangeAnalysis();
+            console.log('代码改动分析:', analysis);
+        }, 60000); // 每分钟获取一次分析数据
+    } else {
+        console.warn('无法初始化代码改动监控：编辑器状态或跟踪器不可用');
+    }
+}
 // 提交逻辑
 function setupSubmitLogic() {
     const submitButton = document.getElementById('submit-button');
