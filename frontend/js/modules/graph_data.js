@@ -2,8 +2,6 @@
 
 // 布局参数
 export const LAYOUT_PARAMS = {
-  CHAPTER_GAP_X: 400,// 章节间的水平间距
-  CHAPTER_START_X: 120,// 每个章节的起始X位置
   TOP_ROW_Y: 150,// 顶部行的Y位置
   ROW_DELTA_Y: 180,//  底部行的Y间隔
   KNOWLEDGE_TOP_ROW_Y: 120,// 知识点顶部行的Y位置

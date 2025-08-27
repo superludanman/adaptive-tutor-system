@@ -88,9 +88,9 @@ export class GraphRenderer {
           selector: 'edge',
           style: {
             'width': 3,
-            'line-color': '#cbd5e1',
+            'line-color': '#2563eb',
             'target-arrow-shape': 'triangle',
-            'target-arrow-color': '#cbd5e1',
+            'target-arrow-color': '#2563eb',
             'curve-style': 'unbundled-bezier',
             'control-point-step-size': 80,
             'control-point-distance': 60,
@@ -189,8 +189,8 @@ export class GraphRenderer {
     this.cy.on('mouseout', 'edge', (evt) => {
       const edge = evt.target;
       edge.style({
-        'line-color': '#cbd5e1',
-        'target-arrow-color': '#cbd5e1',
+        'line-color': '#2563eb',
+        'target-arrow-color': '#2563eb',
         'width': 3
       });
     });
@@ -503,8 +503,14 @@ addToolbarFunctionality() {
     const chapterNodes = this.cy.nodes('[type="chapter"]');
     const containerWidth = this.cy.container().clientWidth;
 
+      // 增加间距系数，1.2表示比原来宽20%
+    const spacingFactor = 1.2;
+    const baseSpacing = containerWidth / (chapterNodes.length + 1);
+    const actualSpacing = baseSpacing * spacingFactor;
+
     chapterNodes.forEach((node, idx) => {
-      const x = (idx + 1) * (containerWidth / (chapterNodes.length + 1));
+      // 使用调整后的间距
+      const x = (idx + 1) * actualSpacing;
       const isTop = idx % 2 === 0;  // 偶数序号放上排，奇数序号放下排
       const y = isTop 
         ? this.layoutParams.TOP_ROW_Y 
@@ -548,8 +554,8 @@ centerAndZoomGraph() {
     });
     
     // 减少边距，创建更紧凑的布局
-    const margin = 40; // 减少边距
-    minX -= margin;
+    const margin = 20; // 减少边距
+    minX -= margin+20;
     maxX += margin;
     minY -= margin;
     maxY += margin;
