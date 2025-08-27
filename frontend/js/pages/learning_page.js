@@ -1,8 +1,9 @@
 
 // ==================== 导入模块 ====================
 // 导入配置模块
+import { getParticipantId } from '../modules/session.js';
 import { AppConfig, buildBackendUrl, initializeConfig } from '../modules/config.js';
-import { setupHeaderTitle, setupBackButton, getUrlParam, trackReferrer,navigateTo } from '../modules/navigation.js';
+import {  setupBackButton, getUrlParam, trackReferrer,navigateTo } from '../modules/navigation.js';
 // 导入功能模块
 import { 
     renderTopicContent,
@@ -56,6 +57,7 @@ const AppDataStore = {
     apiData: {
         topicContent: null,      // 主题内容数据
         allowedElements: null,   // 可选元素数据
+        KnowledgeData: null,   // 可选课程内容数据
         userProgress: null       // 用户进度数据
     },
     
@@ -135,7 +137,6 @@ async function initMainApp() {
             
             // 获取topicId并更新页面标题
             const topicId = getTopicIdFromURL();
-            updatePageTitle(topicId);
             
             try {
                 // 加载所有数据
@@ -186,13 +187,6 @@ function getTopicIdFromURL() {
     return topicId.id;
 }
 
-// 更新页面标题
-function updatePageTitle(topicId) {
-    const headerTitle = document.querySelector('.header-title');
-    if (headerTitle) {
-        headerTitle.textContent = `学习 - ${topicId}`;
-    }
-}
 
 // 加载所有数据
 async function loadAllData(topicId) {
@@ -204,6 +198,9 @@ async function loadAllData(topicId) {
     
     // 获取用户进度数据
     const userProgress = await fetchUserProgress();
+
+    // 获取知识点数据
+    const KnowledgeData = await fetchKnowledgeData();
     
     // 解析可选元素数据
     const elementsData = getAllowedElementsFromData(topicContent, topicId);
@@ -211,6 +208,7 @@ async function loadAllData(topicId) {
     // 存储所有数据
     AppDataStore.setData('topicContent', topicContent);
     AppDataStore.setData('userProgress', userProgress);
+    AppDataStore.setData('KnowledgeData', KnowledgeData);
     AppDataStore.setData('allowedElements', elementsData);
     
     // 设置全局变量
@@ -219,6 +217,7 @@ async function loadAllData(topicId) {
     console.log('[MainApp] 数据加载完成:', { 
         topicContent: topicContent.title,
         elementsCount: elementsData.current.length,
+        KnowledgeData: KnowledgeData.nodes.length,
         progress: userProgress?.data?.completed_topics?.length || 0
     });
 }
@@ -255,8 +254,28 @@ async function fetchUserProgress() {
     }
 }
 
+// 获取知识点数据
+async function fetchKnowledgeData() {
+    // 从localStorage或session获取用户ID
+    const NavUrl   = buildBackendUrl(`/knowledge-graph`);
+    console.log('[MainApp] 获取导航栏请求地址:', NavUrl);
+    try {
+        const response = await fetch(NavUrl);
+        const data = await response.json();
+        return data.data;
+    } catch (error) {
+        console.warn('[MainApp] 获取导航栏数据失败:', error);
+        return null;
+    }
+}
+
 // 初始化各个模块
 async function initializeModules(topicId) {
+    
+    // 初始化侧边导航栏
+    initNavigationSidebar();
+    console.log('[MainApp] 侧边导航栏初始化完成');
+    
     // 初始化知识点模块
     knowledgeModule = new KnowledgeModule();
     console.log('[MainApp] 知识点模块初始化完成');
@@ -854,14 +873,234 @@ function showStatus(type, message) {
         }, 3000);
     }
 }
+// 添加导航栏初始化代码
+function initNavigationSidebar() {
+    // 从API获取导航结构数据
+    fetchNavigationData()
+        .then(navData => {
+            renderNavigationMenu(navData);
+            highlightCurrentTopic(currentTopicId);
+        })
+        .catch(error => {
+            console.error('加载导航数据失败:', error);
+            // 使用默认导航结构作为回退
+            renderDefaultNavigation();
+        });
+}
 
+// 获取导航数据
+async function fetchNavigationData() {
+    const apiUrl = buildBackendUrl('/knowledge-graph');
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+    
+    console.log('[MainApp] fetchNavigationData:', data);
+    if (data.code !== 200 || !data.data) {
+        throw new Error('导航数据API返回数据格式错误');
+    }
+    
+    return data.data;
+}
+
+// 渲染导航菜单
+function renderNavigationMenu() {
+                if (!navMenu) return;
+    
+                const KnowledgeData = AppDataStore.getData('KnowledgeData');
+                // 获取所有章节节点
+                const chapters = KnowledgeData.nodes.filter(node => node.data.type === 'chapter');
+                
+                console.log('[MainApp] chapters:', chapters);
+                let html = '';
+                
+                // 对章节排序
+                chapters.sort((a, b) => {
+                    const aNum = parseInt(a.data.id.split('_')[0]);
+                    const bNum = parseInt(b.data.id.split('_')[0]);
+                    return aNum - bNum;
+                });
+                
+                // 为每个章节生成导航项
+                chapters.forEach(chapter => {
+                    const chapterId = chapter.data.id;
+                    const chapterLabel = chapter.data.label;
+                    console.log('[MainApp] chapterLabel:', chapterLabel);
+                    const chapterNum = chapterId.split('_')[0];// 章节编号
+                    
+                    // 获取该章节下的所有知识点
+                    const knowledgeNodes = KnowledgeData.edges
+                        .filter(edge => edge.data.source === chapterId)
+                        .map(edge => {
+                            return KnowledgeData.nodes.find(node => node.data.id === edge.data.target && node.data.type === 'knowledge');
+                        })
+                        .filter(node => node !== undefined);
+                    
+                    // 对知识点排序
+                    knowledgeNodes.sort((a, b) => {
+                        const aNum = parseInt(a.data.id.split('_')[1]);
+                        const bNum = parseInt(b.data.id.split('_')[1]);
+                        return aNum - bNum;
+                    });
+                    
+                    html += `
+                        <li class="nav-item has-children">
+                            <a href="#" class="nav-link">
+                                <iconify-icon icon="mdi:book-open-variant"></iconify-icon>
+                                <span class="nav-link-text">${chapterLabel}</span>
+                            </a>
+                            <ul class="nav-submenu">
+                    `;
+                    
+                    // 添加知识点子菜单
+                    knowledgeNodes.forEach(knowledge => {
+                        const knowledgeId = knowledge.data.id;
+                        const knowledgeLabel = knowledge.data.label;
+                        
+                        html += `
+                            <li class="nav-item">
+                                <a href="#" class="nav-link" data-topic="${knowledgeId}">
+                                    <iconify-icon icon="mdi:lightbulb-on"></iconify-icon>
+                                    <span class="nav-link-text">${knowledgeLabel}</span>
+                                </a>
+                            </li>
+                        `;
+                    });
+                    
+                    html += `
+                            </ul>
+                        </li>
+                    `;
+                });
+                
+                navMenu.innerHTML = html;
+                
+                // 默认展开第一个章节
+                const firstChapter = navMenu.querySelector('.nav-item.has-children');
+                if (firstChapter) {
+                    firstChapter.classList.add('open');
+                    const submenu = firstChapter.querySelector('.nav-submenu');
+                    if (submenu) {
+                        submenu.classList.add('open');
+                    }
+                }
+            }
+
+// 高亮当前主题
+function highlightCurrentTopic(topicId) {
+    console.log('[MainApp] 高亮当前主题:', topicId);
+    const navLinks = document.querySelectorAll('.nav-link[data-topic]');// 只选择有data-topic属性的链接
+    navLinks.forEach(link => {
+        if (link.dataset.topic === topicId) {
+            link.classList.add('active');
+            
+            // 自动展开父级菜单
+            const parentChapter = link.closest('.has-children');
+            if (parentChapter) {
+                parentChapter.classList.add('open');
+                const submenu = parentChapter.querySelector('.nav-submenu');
+                if (submenu) {
+                    submenu.classList.add('open');
+                }
+            }
+        } else {
+            link.classList.remove('active');
+        }
+    });
+}
+
+// 默认导航结构（API失败时使用）
+function renderDefaultNavigation() {
+    const navMenu = document.getElementById('navMenu');
+    if (!navMenu) return;
+    
+    // 使用硬编码的默认导航结构
+    // 这里可以保持HTML中已有的结构，或使用更完整的默认结构
+}
 // ==================== 自动初始化 ====================
 // 页面加载完成后自动初始化主应用
 document.addEventListener('DOMContentLoaded', async () => {
+    
+    const sidebarSection = document.getElementById('sidebarSection');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const navMenu = document.getElementById('navMenu');
+    // 获取用户ID并验证
+    const participantId = getParticipantId();
+    if (!participantId) {
+      window.location.href = '/pages/index.html';
+      return;
+    }
+// 切换侧边栏状态
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function() {
+                    if (sidebarSection) {
+                        sidebarSection.classList.toggle('expanded');
+                        
+                        // 更新触发按钮图标
+                        const icon = sidebarToggle.querySelector('iconify-icon');
+                        if (sidebarSection.classList.contains('expanded')) {
+                            icon.setAttribute('icon', 'mdi:chevron-left');
+                        } else {
+                            icon.setAttribute('icon', 'mdi:chevron-right');
+                        }
+                    }
+                });
+            }
+
+    // 处理导航菜单点击
+            if (navMenu) {
+                navMenu.addEventListener('click', function(e) {
+                    const link = e.target.closest('.nav-link');
+                    if (!link) return;
+                    
+                    // 阻止默认行为
+                    e.preventDefault();
+                    
+                    const parentItem = link.parentElement;
+                    
+                    // 如果是有子菜单的项，切换子菜单
+                    if (parentItem.classList.contains('has-children')) {
+                        e.stopPropagation();
+                        parentItem.classList.toggle('open');
+                        
+                        const submenu = parentItem.querySelector('.nav-submenu');
+                        if (submenu) {
+                            submenu.classList.toggle('open');
+                        }
+                        
+                        // 关闭其他展开的子菜单
+                        const allOpenItems = navMenu.querySelectorAll('.nav-item.has-children.open');
+                        allOpenItems.forEach(item => {
+                            if (item !== parentItem) {
+                                item.classList.remove('open');
+                                const otherSubmenu = item.querySelector('.nav-submenu');
+                                if (otherSubmenu) {
+                                    otherSubmenu.classList.remove('open');
+                                }
+                            }
+                        });
+                    } 
+                    // 如果是叶子节点，跳转到对应知识点
+                    else if (link.dataset.topic) {
+                        const topicId = link.dataset.topic;
+                        
+                        // 移除所有active类
+                        const activeLinks = navMenu.querySelectorAll('.nav-link.active');
+                        activeLinks.forEach(activeLink => {
+                            activeLink.classList.remove('active');
+                        });
+                        
+                        // 添加active类到当前链接
+                        link.classList.add('active');
+                        
+                        // 跳转到测试页面并传递topicId参数
+                        const testPageUrl = `../pages/learning_page.html?topic=${topicId}`;
+                        console.log('[MainApp] 跳转到学习页面:', testPageUrl);
+                        navigateTo('/pages/learning_page.html', topicId);
+                    }
+                });
+            }
     try {
         trackReferrer();
-        // 设置标题点击跳转到知识图谱页面
-        setupHeaderTitle('/pages/knowledge_graph.html');
         // 设置返回按钮（固定返回知识图谱）
         setupBackButton();
         // 先初始化配置
