@@ -23,12 +23,7 @@ import {
 
 // 导入行为追踪器
 import tracker from '../modules/behavior_tracker.js';
-tracker.init({
-    endpoint: 'http://localhost:8000/api/v1/behavior/log', // 或用 <meta name="api-base"> / window.__API_BASE__
-    user_idle: true,
-    page_focus_change: true,
-    idleThreshold: 60000,           // 测试时可先设成 5000（5s）
-});
+
 
 // 导入聊天模块
 import chatModule from '../modules/chat.js';
@@ -37,6 +32,12 @@ import chatModule from '../modules/chat.js';
 import '../api_client.js';
 
 console.log('learning_page.js 开始加载...');
+
+tracker.init({
+    user_idle: false,
+    page_focus_change: false,
+    idleThreshold: 60000,           // 测试时可先设成 5000（5s）
+});
 
 // ==================== 变量定义 ====================
 let bridge = null;
@@ -610,13 +611,13 @@ function initBehaviorTracker() {
         console.log('[MainApp] 开始初始化行为追踪器...');
 
         // 初始化元素选择器行为追踪
-        tracker.initDOMSelector('startSelector', 'stopSelector', 'element-selector-iframe');
+        // tracker.initDOMSelector('startSelector', 'stopSelector', 'element-selector-iframe');
 
         // 初始化AI聊天行为追踪
         tracker.initChat('send-message', '#user-message', 'learning', currentTopicId);
 
         // 初始化闲置和焦点检测
-        tracker.initIdleAndFocus();
+        // tracker.initIdleAndFocus();
 
         console.log('[MainApp] 行为追踪器初始化完成');
     } catch (error) {

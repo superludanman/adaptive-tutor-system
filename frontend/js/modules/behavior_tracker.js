@@ -6,65 +6,43 @@
  * - 捕获 TDD-II-07 中规定的关键事件：
  *   code_edit（Monaco 编辑器防抖 2s）、ai_help_request（立即）、test_submission（立即，包含 code）、dom_element_select（立即，iframe 支持）、user_idle（60s）、page_focus_change（visibility）
  * - 组装标准化 payload 并可靠发送到后端 /api/v1/behavior/log
- * - 优先使用 navigator.sendBeacon；在不支持时 fallback 到 fetch(..., { keepalive: true })
+ * - 【已改】统一使用 fetch(..., { keepalive: true, credentials: 'omit' })，彻底不带 Cookie
  *
  * 注意：
  * - 本文件不修改现有 HTML。脚本提供自动初始化尝试（initAuto），但更可靠的方式是：在页面创建 Monaco 编辑器后显式调用 tracker.initEditors(...) 与 tracker.initTestActions(...)
  * - TODO中表示需要我们根据实际项目调整或确认的点（Monaco 编辑器实例的暴露方式等）
  */
 
-// frontend/js/modules/behavior_tracker.js
-/**
- * BehaviorTracker 前端行为追踪模块
- *
- * 新增：
- * - 页面点击统计（dom_click_stats）：交互区记录【相对坐标+内容】；非交互区只记录【相对坐标】。
- * - 相对坐标：相对于目标元素边界的 [0,1] 归一化坐标（x_norm/y_norm），并附带视口归一化坐标 vp_x_norm/vp_y_norm。
- * - 批量打包：可配置 flushInterval / maxBatchSize；对高频区域（如 .monaco-editor）可使用更短 flush。
- *
- * 仍保持：
- * - 不写死后端地址：init({ endpoint }) 或 window.__API_BASE__ / <meta name="api-base"> / 回落 '/api/v1/behavior/log'
- * - 发送不带凭证：fetch(credentials:'omit')；sendBeacon 优先。
- */
-
 import debounce from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/debounce.js';
 import { getParticipantId } from './session.js';
 
-function resolveBehaviorEndpoint(configEndpoint) {
-  if (configEndpoint && typeof configEndpoint === 'string') return configEndpoint;
-  try { if (window.__API_BASE__) return String(window.__API_BASE__).replace(/\/$/, '') + '/api/v1/behavior/log'; } catch { }
-  try {
-    const meta = document.querySelector('meta[name="api-base"]');
-    if (meta?.content) return String(meta.content).replace(/\/$/, '') + '/api/v1/behavior/log';
-  } catch { }
-  return '/api/v1/behavior/log';
-}
-
-function clamp01(v) { return Math.max(0, Math.min(1, v)); }
-
 class BehaviorTracker {
   constructor() {
-    // —— 基本配置 ——
+    // 闲置阈值（ms）
     this.idleThreshold = 60000; // 60s
+    // code_edit 防抖时长（ms）
     this.debounceMs = 2000;
-    this._endpoint = '/api/v1/behavior/log';
-
-    // —— 状态 ——
     this.idleTimer = null;
+    // 代码改动监控相关属性
+    this.codeChangeHistory = [];
+    this.lastChangeTime = Date.now();
+    this.codeStats = {
+      totalChanges: 0,
+      htmlChanges: 0,
+      cssChanges: 0,
+      jsChanges: 0,
+      startTime: Date.now()
+    };
+
+
+    // ✅ 添加标志位，防止多次绑定焦点与闲置监听器
     this._focusAndIdleBound = false;
     this._enabledEvents = {};
-
-    // —— 点击统计（批量）——
-    this._clickCfg = null;
-    this._clickBatch = [];
-    this._clickBatchTimer = null;
-    this._lastFlushAt = 0;
+    this._elementClickBound = false;
   }
 
   init(config = {}) {
-    this._endpoint = resolveBehaviorEndpoint(config.endpoint);
     this._enabledEvents = config;
-
     if (config.user_idle) this.initIdleAndFocus(config.idleThreshold);
     if (config.page_focus_change && !config.user_idle) {
       if (!this._focusAndIdleBound) {
@@ -81,253 +59,315 @@ class BehaviorTracker {
     }
     if (config.code_edit && window.editors) this.initEditors(window.editors);
     if (config.ai_help_request) this.initChat('send-message', '#user-message');
-    if (config.test_submission && window.editors) {
-      this.initTestActions('run-button', 'submit-button', window.editors, () => window.currentTopicId || null);
-    }
-    if (config.element_clicks) {
-      this.initElementClickTracking(config.element_click_options || {});
+    if (config.test_submission && window.editors) this.initTestActions('run-button', 'submit-button', window.editors, () => window.currentTopicId || null);
+    if (config.dom_element_select) this.initDOMSelector('startSelector', 'stopSelector', 'element-selector-iframe');
+    // if (config.element_clicks) {
+    //   this.initElementClickTracking(config.element_click_options || {});
+    // }
+  }
+
+  // -------------------- 核心发送函数 --------------------
+  // 【已改】统一使用 fetch keepalive，并显式禁用 Cookie（credentials:'omit'）
+  _sendPayload(payload) {
+    const url = 'http://localhost:8000/api/v1/behavior/log';
+    try {
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true,
+        credentials: 'omit', // 👈 不带 Cookie / 凭证
+      }).catch(err => {
+        console.warn('[BehaviorTracker] fetch 发送失败：', err);
+      });
+    } catch (e) {
+      console.warn('[BehaviorTracker] 发送日志时异常：', e);
     }
   }
 
-  // -------------------- 发送（无 credentials） --------------------
-  _sendPayload(payload) {
-    const url = this._endpoint;
+  // 公共上报接口：组装标准 payload 并发送
+  logEvent(eventType, eventData = {}) {
+    // 获取 participant_id（从 session.js 或 window 取）
+    let participant_id = null;
     try {
-      if (navigator && typeof navigator.sendBeacon === 'function') {
-        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-        navigator.sendBeacon(url, blob);
-      } else {
-        fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          keepalive: true,
-          credentials: 'omit', // ✅ 不带凭证
-        }).catch(err => console.warn('[BehaviorTracker] fetch 发送失败：', err));
+      if (typeof getParticipantId === 'function') {
+        participant_id = getParticipantId();
       }
     } catch (e) {
-      console.warn('[BehaviorTracker] 发送异常：', e);
+      // ignore
     }
-  }
-
-  // -------------------- 公共上报 --------------------
-  logEvent(eventType, eventData = {}) {
-    let participant_id = null;
-    try { if (typeof getParticipantId === 'function') participant_id = getParticipantId(); } catch { }
-    if (!participant_id && typeof window !== 'undefined' && window.participantId) participant_id = window.participantId;
-    if (!participant_id) { console.warn('[BehaviorTracker] 无 participant_id，跳过：', eventType); return; }
+    // 兜底：如果页面在全局暴露 participantId，也可取之
+    if (!participant_id && window && window.participantId) {
+      participant_id = window.participantId;
+    }
+    if (!participant_id) {
+      // 如果没有 participant_id，则按 TDD-II-07 的说明不追踪；可选择缓冲但当前选择跳过
+      console.warn('[BehaviorTracker] 无 participant_id，跳过事件：', eventType);
+      return;
+    }
 
     const payload = {
       participant_id,
       event_type: eventType,
-      event_data: eventData,          // 按你后端使用的命名保持 event_data
+      event_data: eventData,
       timestamp: new Date().toISOString()
     };
+
     this._sendPayload(payload);
   }
 
-  // -------------------- Monaco 编辑器 --------------------
-  initEditors(editors) {
-    if (!editors) return;
-    const debouncedLog = debounce((name, code) => {
-      this.logEvent('code_edit', { editorName: name, newLength: code ? code.length : 0 });
-    }, this.debounceMs);
+  // -------------------- 代码改动监控功能 --------------------
+  /**
+   * 初始化代码改动监控
+   * @param {Object} editors - 编辑器实例对象 { html: editor, css: editor, js: editor }
+   */
+  initCodeChangeTracking(editors) {
+    if (!editors) {
+      console.warn('[BehaviorTracker] 无编辑器实例，无法初始化代码改动监控');
+      return;
+    }
 
     try {
-      if (editors.html?.onDidChangeModelContent) editors.html.onDidChangeModelContent(() => debouncedLog('html', editors.html.getValue()));
-      if (editors.css?.onDidChangeModelContent) editors.css.onDidChangeModelContent(() => debouncedLog('css', editors.css.getValue()));
-      if (editors.js?.onDidChangeModelContent) editors.js.onDidChangeModelContent(() => debouncedLog('js', editors.js.getValue()));
-    } catch (e) { console.warn('[BehaviorTracker] initEditors 错误：', e); }
-  }
-
-  // -------------------- AI 求助 --------------------
-  initChat(sendButtonId, inputSelector, mode = 'learning', contentId = null) {
-    const btn = document.getElementById(sendButtonId);
-    const input = document.querySelector(inputSelector);
-    if (!btn || !input) return;
-
-    const sendMessage = () => {
-      const message = input.value || '';
-      if (!message.trim()) return;
-      this.logEvent('ai_help_request', { message: message.substring(0, 2000), mode, content_id: contentId });
-    };
-
-    btn.addEventListener('click', sendMessage);
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-    });
-  }
-
-  // -------------------- 测试/提交 --------------------
-  initTestActions(runBtnId, submitBtnId, editors, topicIdGetter) {
-    const gatherCode = () => {
-      const code = {};
-      if (editors?.html?.getValue) code.html = editors.html.getValue();
-      if (editors?.css?.getValue) code.css = editors.css.getValue();
-      if (editors?.js?.getValue) code.js = editors.js.getValue();
-      return code;
-    };
-    const runBtn = document.getElementById(runBtnId);
-    const subBtn = document.getElementById(submitBtnId);
-
-    if (runBtn) runBtn.addEventListener('click', () => {
-      this.logEvent('test_submission', { action: 'run', topic_id: (typeof topicIdGetter === 'function' ? topicIdGetter() : window.currentTopicId) || null, code: gatherCode() });
-    });
-    if (subBtn) subBtn.addEventListener('click', () => {
-      this.logEvent('test_submission', { action: 'submit', topic_id: (typeof topicIdGetter === 'function' ? topicIdGetter() : window.currentTopicId) || null, code: gatherCode() });
-    });
-  }
-
-  // -------------------- 页面点击统计（新增） --------------------
-  /**
-   * options:
-   * {
-   *   batch: true,
-   *   flushInterval: 1500,          // 普通区域打包间隔
-   *   maxBatchSize: 40,             // 到达上限立即发送
-   *   frequentAreaSelectors: ['.monaco-editor'], // 高频区域选择器
-   *   frequentFlushInterval: 500,   // 高频区域更短的打包间隔
-   *   includeTextMaxLen: 120        // 交互内容截断
-   * }
-   */
-  initElementClickTracking(options = {}) {
-    const defaults = {
-      batch: true,
-      flushInterval: 1500,
-      maxBatchSize: 40,
-      frequentAreaSelectors: [],
-      frequentFlushInterval: 500,
-      includeTextMaxLen: 120,
-    };
-    this._clickCfg = { ...defaults, ...options };
-
-    const handler = (e) => {
-      const t = e.target;
-      if (!t || !(t instanceof Element)) return;
-
-      const rec = this._buildClickRecord(t, e, this._clickCfg.includeTextMaxLen);
-      const isFrequent = this._matchesAny(t, this._clickCfg.frequentAreaSelectors);
-
-      if (this._clickCfg.batch) {
-        this._enqueueClick(rec, isFrequent);
-      } else {
-        // 单发模式：每次点击直接发一条 dom_click_stats，items 长度为 1
-        this._sendClickBatch([rec]);
+      // 为每个编辑器设置内容变化监听
+      if (editors.html && typeof editors.html.onDidChangeModelContent === 'function') {
+        editors.html.onDidChangeModelContent(() => {
+          this._recordCodeChange('html', editors.html.getValue());
+        });
       }
-    };
+      if (editors.css && typeof editors.css.onDidChangeModelContent === 'function') {
+        editors.css.onDidChangeModelContent(() => {
+          this._recordCodeChange('css', editors.css.getValue());
+        });
+      }
+      if (editors.js && typeof editors.js.onDidChangeModelContent === 'function') {
+        editors.js.onDidChangeModelContent(() => {
+          this._recordCodeChange('js', editors.js.getValue());
+        });
+      }
 
-    // 捕获阶段，避免被框架停止冒泡
-    document.addEventListener('click', handler, { capture: true });
+      console.log('[BehaviorTracker] 代码改动监控已初始化');
+
+      // 启动定期报告
+      this._startPeriodicReporting();
+
+    } catch (e) {
+      console.warn('[BehaviorTracker] 初始化代码改动监控时出错：', e);
+    }
   }
 
-  _buildClickRecord(target, e, maxLen) {
-    const rect = target.getBoundingClientRect ? target.getBoundingClientRect() : null;
-    const w = rect?.width || 1, h = rect?.height || 1;
-    const x_norm = clamp01((e.clientX - (rect?.left ?? 0)) / w);
-    const y_norm = clamp01((e.clientY - (rect?.top ?? 0)) / h);
-    const vp_x_norm = clamp01(e.clientX / (window.innerWidth || 1));
-    const vp_y_norm = clamp01(e.clientY / (window.innerHeight || 1));
-    const tag = (target.tagName || '').toLowerCase();
-    const selector = this._generateCssSelector(target);
+  /**
+   * 记录代码改动
+   * @param {string} editorType - 编辑器类型 ('html', 'css', 'js')
+   * @param {string} content - 编辑器内容
+   */
+  _recordCodeChange(editorType, content) {
+    const now = Date.now();
+    const timeSinceLastChange = now - this.lastChangeTime;
+    this.lastChangeTime = now;
 
-    const interactive = this._isInteractive(target);
-    const content = interactive ? this._getInteractiveContent(target, maxLen) : null;
+    // 计算代码指标
+    const lines = content.split('\n').length;
+    const length = content.length;
+
+    // 创建改动记录
+    const changeRecord = {
+      timestamp: now,
+      editor: editorType,
+      codeLength: length,
+      lineCount: lines,
+      timeSinceLastChange: timeSinceLastChange
+    };
+
+    // 添加到历史
+    this.codeChangeHistory.push(changeRecord);
+
+    // 更新统计
+    this.codeStats.totalChanges++;
+    this.codeStats[`${editorType}Changes`]++;
+
+    // 输出到控制台
+    this._logCodeChangeToConsole(changeRecord);
+
+    // 同时发送标准 code_edit 事件（防抖的）
+    this._debouncedCodeEdit(editorType, content);
+  }
+
+  // 防抖的 code_edit 事件上报
+  _debouncedCodeEdit = debounce((editorType, content) => {
+    this.logEvent('code_edit', {
+      editorName: editorType,
+      newLength: content ? content.length : 0,
+      lineCount: content.split('\n').length
+    });
+  }, this.debounceMs);
+
+  // 输出代码改动的控制台日志
+  _logCodeChangeToConsole(changeRecord) {
+    const time = new Date(changeRecord.timestamp).toLocaleTimeString();
+    console.log(
+      `%c代码改动监控%c [${time}] %c${changeRecord.editor.toUpperCase()}%c: ${changeRecord.codeLength}字符, ${changeRecord.lineCount}行, 间隔: ${changeRecord.timeSinceLastChange}ms`,
+      'background: #4dabf7; color: white; padding: 2px 4px; border-radius: 3px;',
+      'color: #666;',
+      'color: #339af0; font-weight: bold;',
+      'color: default;'
+    );
+  }
+
+  // 启动定期报告
+  _startPeriodicReporting() {
+    // 每30秒报告一次
+    setInterval(() => this._reportCodeChangeSummary(), 30000);
+  }
+
+  // 报告代码改动摘要
+  _reportCodeChangeSummary() {
+    if (this.codeChangeHistory.length === 0) return;
+
+    const sessionDuration = Math.round((Date.now() - this.codeStats.startTime) / 1000);
+    const changesPerMinute = Math.round((this.codeStats.totalChanges / sessionDuration) * 60);
+
+    console.groupCollapsed(`%c代码改动摘要 - ${new Date().toLocaleTimeString()}`, 'font-weight: bold; color: #1864ab;');
+    console.log(`会话时长: ${sessionDuration}秒`);
+    console.log(`总改动次数: ${this.codeStats.totalChanges}`);
+    console.log(`每分钟改动: ${changesPerMinute}次`);
+    console.log(`HTML改动: ${this.codeStats.htmlChanges}`);
+    console.log(`CSS改动: ${this.codeStats.cssChanges}`);
+    console.log(`JS改动: ${this.codeStats.jsChanges}`);
+
+    // 计算平均编辑间隔
+    if (this.codeChangeHistory.length > 1) {
+      const intervals = this.codeChangeHistory
+        .filter((_, i) => i > 0)
+        .map(record => record.timeSinceLastChange);
+
+      const avgInterval = Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length);
+      console.log(`平均编辑间隔: ${avgInterval}ms`);
+    }
+
+    console.groupEnd();
+  }
+
+  /**
+   * 获取代码改动分析数据
+   * @returns {Object} 代码改动统计数据
+   */
+  getCodeChangeAnalysis() {
+    const sessionDuration = Math.round((Date.now() - this.codeStats.startTime) / 1000);
+    const changesPerMinute = this.codeStats.totalChanges > 0 ?
+      Math.round((this.codeStats.totalChanges / sessionDuration) * 60) : 0;
+
+    // 计算平均编辑间隔
+    let avgInterval = 0;
+    if (this.codeChangeHistory.length > 1) {
+      const intervals = this.codeChangeHistory
+        .filter((_, i) => i > 0)
+        .map(record => record.timeSinceLastChange);
+
+      avgInterval = Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length);
+    }
 
     return {
-      t: new Date().toISOString(),
-      tag,
-      selector,
-      interactive,
-      x_norm, y_norm,
-      vp_x_norm, vp_y_norm,
-      rect_wh: { w: Math.round(w), h: Math.round(h) },
-      page: { vw: window.innerWidth, vh: window.innerHeight, dpr: window.devicePixelRatio || 1 },
-      content,                       // 仅交互元素采集
-      content_len: content ? content.length : 0,
+      sessionDuration,
+      totalChanges: this.codeStats.totalChanges,
+      changesPerMinute,
+      htmlChanges: this.codeStats.htmlChanges,
+      cssChanges: this.codeStats.cssChanges,
+      jsChanges: this.codeStats.jsChanges,
+      avgInterval,
+      changeHistory: this.codeChangeHistory
     };
   }
 
-  _isInteractive(el) {
-    if (!el || !(el instanceof Element)) return false;
-    const tag = el.tagName ? el.tagName.toLowerCase() : '';
-    if (['button', 'input', 'select', 'textarea', 'label'].includes(tag)) return true;
-    if (el.hasAttribute('contenteditable')) return true;
-    if (el.getAttribute('role') === 'button') return true;
-    if (el.matches?.('a[href], [tabindex]:not([tabindex="-1"])')) return true;
-    return false;
+  /**
+   * 清空代码改动历史（可用于重置或开始新的会话）
+   */
+  clearCodeChangeHistory() {
+    this.codeChangeHistory = [];
+    this.codeStats = {
+      totalChanges: 0,
+      htmlChanges: 0,
+      cssChanges: 0,
+      jsChanges: 0,
+      startTime: Date.now()
+    };
+    console.log('[BehaviorTracker] 代码改动历史已清空');
   }
 
-  _getInteractiveContent(el, maxLen = 120) {
-    try {
-      const tag = el.tagName?.toLowerCase() || '';
-      // 避免敏感信息
-      if (tag === 'input' && (el.type === 'password' || el.type === 'file')) return null;
 
-      let text = '';
-      if (tag === 'input' || tag === 'textarea') text = el.value ?? '';
-      else text = el.textContent ?? '';
+  //后端处理
+  // // -------------------- AI 求助（聊天） --------------------
+  // // sendButtonId: 提问按钮 id；inputSelector: 文本输入选择器
+  // // mode: 模式 ('learning' 或 'test')；contentId: 内容ID
+  // initChat(sendButtonId, inputSelector, mode = 'learning', contentId = null) {
+  //   const btn = document.getElementById(sendButtonId);
+  //   const input = document.querySelector(inputSelector);
+  //   if (!btn || !input) return;
 
-      text = text.trim().replace(/\s+/g, ' ');
-      if (text.length > maxLen) text = text.slice(0, maxLen);
-      return text || null;
-    } catch { return null; }
-  }
+  //   const sendMessage = () => {
+  //     const message = input.value || '';
+  //     if (!message.trim()) return;
+  //     this.logEvent('ai_help_request', {
+  //       message: message.substring(0, 2000),
+  //       mode: mode,
+  //       content_id: contentId
+  //     });
+  //   };
 
-  _matchesAny(el, selectors = []) {
-    if (!el?.matches || !selectors?.length) return false;
-    return selectors.some(sel => {
-      try { return el.matches(sel) || !!el.closest(sel); } catch { return false; }
-    });
-  }
+  //   btn.addEventListener('click', sendMessage);
 
-  _enqueueClick(rec, isFrequent) {
-    this._clickBatch.push(rec);
-    const now = Date.now();
-    const cfg = this._clickCfg;
+  //   // 支持 Enter 提交
+  //   input.addEventListener('keydown', (e) => {
+  //     if (e.key === 'Enter' && !e.shiftKey) {
+  //       e.preventDefault();
+  //       sendMessage();
+  //     }
+  //   });
+  // }
 
-    // 达到最大批量 -> 立即发送
-    if (this._clickBatch.length >= cfg.maxBatchSize) {
-      this._flushClickBatch();
-      return;
-    }
+  // // -------------------- 测试/提交（包含 code） --------------------
+  // // runBtnId / submitBtnId: 按钮 id；editors: 同 initEditors；topicIdGetter: 可选函数返回 topic_id
+  // initTestActions(runBtnId, submitBtnId, editors, topicIdGetter) {
+  //   const gatherCode = () => {
+  //     const code = {};
+  //     if (editors?.html && typeof editors.html.getValue === 'function') code.html = editors.html.getValue();
+  //     if (editors?.css && typeof editors.css.getValue === 'function') code.css = editors.css.getValue();
+  //     if (editors?.js && typeof editors.js.getValue === 'function') code.js = editors.js.getValue();
+  //     return code;
+  //   };
 
-    // 首次或需要调整计时器
-    const interval = isFrequent ? cfg.frequentFlushInterval : cfg.flushInterval;
+  //   const runBtn = document.getElementById(runBtnId);
+  //   const subBtn = document.getElementById(submitBtnId);
 
-    // 如果已有计时器，但当前区域更“高频”，则缩短下一次触发
-    if (this._clickBatchTimer) {
-      const nextAt = this._lastFlushAt + interval;
-      if (now + interval < nextAt) {
-        clearTimeout(this._clickBatchTimer);
-        this._clickBatchTimer = setTimeout(() => this._flushClickBatch(), interval);
-      }
-      return;
-    }
+  //   if (runBtn) {
+  //     runBtn.addEventListener('click', () => {
+  //       this.logEvent('test_submission', {
+  //         action: 'run',
+  //         topic_id: (typeof topicIdGetter === 'function' ? topicIdGetter() : window.currentTopicId) || null,
+  //         code: gatherCode()
+  //       });
+  //     });
+  //   }
 
-    // 启动计时器
-    this._clickBatchTimer = setTimeout(() => this._flushClickBatch(), interval);
-  }
+  //   if (subBtn) {
+  //     subBtn.addEventListener('click', () => {
+  //       this.logEvent('test_submission', {
+  //         action: 'submit',
+  //         topic_id: (typeof topicIdGetter === 'function' ? topicIdGetter() : window.currentTopicId) || null,
+  //         code: gatherCode()
+  //       });
+  //     });
+  //   }
+  // }
 
-  _flushClickBatch() {
-    if (!this._clickBatch.length) return;
-    const items = this._clickBatch.splice(0, this._clickBatch.length);
-    clearTimeout(this._clickBatchTimer);
-    this._clickBatchTimer = null;
-    this._lastFlushAt = Date.now();
-    this._sendClickBatch(items);
-  }
-
-  _sendClickBatch(items) {
-    // 统一事件名：dom_click_stats（数组）
-    this.logEvent('dom_click_stats', {
-      page_url: window.location.pathname,
-      count: items.length,
-      items
-    });
-  }
-
-  // -------------------- 闲置与焦点 --------------------
+  /**
+   * BehaviorTracker 前端行为追踪模块
+   *
+   * 扩展支持：
+   * - user_idle: 增加 timestamp_start, timestamp_end, was_focused, page_url, trigger_source 字段
+   * - page_focus_change: 增加 timestamp, page_url 字段
+   */
   initIdleAndFocus(idleMs = this.idleThreshold) {
+    // ✅ 避免重复绑定监听器
     if (this._focusAndIdleBound) return;
     this._focusAndIdleBound = true;
 
@@ -364,28 +404,41 @@ class BehaviorTracker {
     resetIdle();
   }
 
-  // -------------------- 生成 CSS Selector --------------------
+  // -------------------- 辅助：生成 CSS Selector --------------------
   _generateCssSelector(el) {
     if (!el) return '';
     const parts = [];
     while (el && el.nodeType === Node.ELEMENT_NODE) {
       let part = el.nodeName.toLowerCase();
-      if (el.id) { part += `#${el.id}`; parts.unshift(part); break; }
-      let i = 1, sib = el;
-      while ((sib = sib.previousElementSibling) != null) { if (sib.nodeName.toLowerCase() === part) i++; }
-      if (i > 1) part += `:nth-of-type(${i})`;
+      if (el.id) {
+        part += `#${el.id}`;
+        parts.unshift(part);
+        break;
+      } else {
+        let i = 1;
+        let sib = el;
+        while ((sib = sib.previousElementSibling) != null) {
+          if (sib.nodeName.toLowerCase() === part) i++;
+        }
+        if (i > 1) part += `:nth-of-type(${i})`;
+      }
       parts.unshift(part);
       el = el.parentElement;
     }
     return parts.join(' > ');
   }
 
-  // -------------------- 自动尝试 --------------------
   initAuto() {
     document.addEventListener('DOMContentLoaded', () => {
       const monacoContainer = document.getElementById('monaco-editor');
       if (monacoContainer && window.monaco && window.editors) {
-        try { this.initEditors(window.editors || {}); } catch (e) { console.warn('[BehaviorTracker] 编辑器自动初始化失败', e); }
+        try {
+          const editors = window.editors || {};
+          this.initEditors(editors);
+        } catch (e) {
+          console.warn('[BehaviorTracker] 编辑器自动初始化失败', e);
+        }
+        return;
       }
     });
   }
@@ -394,4 +447,6 @@ class BehaviorTracker {
 const tracker = new BehaviorTracker();
 export default tracker;
 
-try { tracker.initAuto(); } catch (err) { console.warn('[BehaviorTracker] initAuto error', err); }
+try { tracker.initAuto(); } catch (err) {
+  console.warn('[BehaviorTracker] initAuto error', err);
+}

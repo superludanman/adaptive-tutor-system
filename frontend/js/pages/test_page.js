@@ -6,9 +6,8 @@ import tracker from '../modules/behavior_tracker.js';
 import chatModule from '../modules/chat.js';
 
 tracker.init({
-    endpoint: 'http://localhost:8000/api/v1/behavior/log', // 或用 <meta name="api-base"> / window.__API_BASE__
-    user_idle: true,
-    page_focus_change: true,
+    user_idle: false,
+    page_focus_change: false,
     idleThreshold: 60000,           // 测试时可先设成 5000（5s）
 });
 // 初始化函数
@@ -115,7 +114,7 @@ function initializeEditors(startCode) {
             if (window.editorState.jsEditor && window.editorState.jsEditor.setValue) {
                 window.editorState.jsEditor.setValue(window.editorState.js);
             }
-
+            initCodeChangeTracking();
             // 触发预览更新
             if (typeof updateLocalPreview === 'function') {
                 updateLocalPreview();
@@ -125,7 +124,26 @@ function initializeEditors(startCode) {
         }
     }, 100);
 }
+function initCodeChangeTracking() {
+    if (window.editorState && tracker && typeof tracker.initCodeChangeTracking === 'function') {
+        const editors = {
+            html: window.editorState.htmlEditor,
+            css: window.editorState.cssEditor,
+            js: window.editorState.jsEditor
+        };
 
+        tracker.initCodeChangeTracking(editors);
+        console.log('代码改动监控已启动');
+
+        // 示例：定期获取分析数据（可根据需要调整）
+        setInterval(() => {
+            const analysis = tracker.getCodeChangeAnalysis();
+            console.log('代码改动分析:', analysis);
+        }, 60000); // 每分钟获取一次分析数据
+    } else {
+        console.warn('无法初始化代码改动监控：编辑器状态或跟踪器不可用');
+    }
+}
 
 // 提交逻辑
 function setupSubmitLogic() {
