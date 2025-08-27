@@ -1,10 +1,16 @@
 // 导入模块
 import { getParticipantId } from '../modules/session.js';
 import { marked } from "https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js";
-import { setupHeaderTitle, setupBackButton, getUrlParam, debugUrlParams, getReturnUrl  } from '../modules/navigation.js';
+import { setupHeaderTitle, setupBackButton, getUrlParam, debugUrlParams, getReturnUrl } from '../modules/navigation.js';
 import tracker from '../modules/behavior_tracker.js';
 import chatModule from '../modules/chat.js';
 
+tracker.init({
+    endpoint: 'http://localhost:8000/api/v1/behavior/log', // 或用 <meta name="api-base"> / window.__API_BASE__
+    user_idle: true,
+    page_focus_change: true,
+    idleThreshold: 60000,           // 测试时可先设成 5000（5s）
+});
 // 初始化函数
 async function initializePage() {
     const participantId = getParticipantId();
@@ -15,29 +21,29 @@ async function initializePage() {
         }
     }
     // 获取并解密URL参数
-     // 获取URL参数（带错误处理）
-        const topicData = getUrlParam('topic');
-        
-        if (topicData && topicData.id) {
-            console.log('测试主题ID:', topicData.id, '有效期:', topicData.isValid ? '有效' : '已过期');
-                
-            // 更新页面标题
-            document.getElementById('headerTitle').textContent = `测试 - ${topicData.id}`;
-            
-            // 即使过期也继续加载内容，但提示用户
-            if (!topicData.isValid) {
-               console.warn('参数已过期，但仍继续加载内容');
-            }
-                
-            // 加载对应的测试内容
-            chatModule.init('test', topicData.id);
-        } else {
-            console.warn('未找到有效的主题参数，使用默认内容');
-            console.log('加载默认测试内容');
+    // 获取URL参数（带错误处理）
+    const topicData = getUrlParam('topic');
+
+    if (topicData && topicData.id) {
+        console.log('测试主题ID:', topicData.id, '有效期:', topicData.isValid ? '有效' : '已过期');
+
+        // 更新页面标题
+        document.getElementById('headerTitle').textContent = `测试 - ${topicData.id}`;
+
+        // 即使过期也继续加载内容，但提示用户
+        if (!topicData.isValid) {
+            console.warn('参数已过期，但仍继续加载内容');
         }
-    
+
+        // 加载对应的测试内容
+        chatModule.init('test', topicData.id);
+    } else {
+        console.warn('未找到有效的主题参数，使用默认内容');
+        console.log('加载默认测试内容');
+    }
+
     let topicId = topicData.id;
-    
+
     // 如果没有topic参数，且查询字符串只有一个值，则使用该值
     if (!topicId) {
         // 获取所有参数的键
@@ -51,7 +57,7 @@ async function initializePage() {
             topicId = urlParams.get('');
         }
     }
-    
+
     if (!topicId) {
         console.error('未找到Topic ID');
         alert('错误：无效的测试链接。');
@@ -67,7 +73,7 @@ async function initializePage() {
             updateUIWithTaskData(task);
             // 初始化编辑器
             initializeEditors(task.start_code);
- 
+
         } else {
             throw new Error(response.message || '获取测试任务失败');
         }
@@ -95,7 +101,7 @@ function initializeEditors(startCode) {
     if (typeof window.setInitialCode === 'function') {
         window.setInitialCode(startCode);
     }
-    
+
     // 延迟初始化编辑器，确保editor.js中的require已经执行
     setTimeout(() => {
         if (window.monaco && window.editorState) {
@@ -109,7 +115,7 @@ function initializeEditors(startCode) {
             if (window.editorState.jsEditor && window.editorState.jsEditor.setValue) {
                 window.editorState.jsEditor.setValue(window.editorState.js);
             }
-            
+
             // 触发预览更新
             if (typeof updateLocalPreview === 'function') {
                 updateLocalPreview();
@@ -125,16 +131,16 @@ function initializeEditors(startCode) {
 function setupSubmitLogic() {
     const submitButton = document.getElementById('submit-button');
     if (!submitButton) return;
-    
+
     submitButton.addEventListener('click', async () => {
         const originalText = submitButton.textContent;
         submitButton.disabled = true;
         submitButton.textContent = '批改中...';
-        
+
         try {
             const topicId = new URLSearchParams(window.location.search).get('topic');
             if (!topicId) throw new Error("主题ID无效。");
-            
+
             const submissionData = {
                 topic_id: topicId,
                 code: {
@@ -143,9 +149,9 @@ function setupSubmitLogic() {
                     js: window.editorState.jsEditor?.getValue() || ''
                 }
             };
-            
+
             const result = await window.apiClient.post('/submission/submit-test', submissionData);
-            
+
             if (result.code === 200) {
                 displayTestResult(result.data);
                 if (result.data.passed) {
@@ -178,18 +184,18 @@ function displayTestResult(result) {
         alert(message);
         return;
     }
-    
+
     let content = `<h4>${result.passed ? '✅ 恭喜！通过测试！' : '❌ 未通过测试'}</h4><p>${result.message || ''}</p>`;
     if (result.details && result.details.length > 0) {
         content += `<h5>详细信息:</h5><ul>${result.details.map(d => `<li>${d}</li>`).join('')}</ul>`;
     }
-    
+
     testResultsContent.innerHTML = content;
     testResultsContent.className = result.passed ? 'test-result-passed' : 'test-result-failed';
 }
 
 // 主程序入口
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // 设置标题和返回按钮
     setupHeaderTitle('/pages/knowledge_graph.html');
     // 设置返回按钮
@@ -199,13 +205,13 @@ document.addEventListener('DOMContentLoaded', function() {
     require(['vs/editor/editor.main'], function () {
         initializePage();
         setupSubmitLogic();
-        
+
         // 初始化AI聊天功能
         // 获取并解密URL参数
         const returnUrl = getReturnUrl();
         console.log('返回URL:', returnUrl);
         const contentId = getUrlParam('topic');
-        if (contentId&& contentId.id) {
+        if (contentId && contentId.id) {
             // 使用新的聊天模块初始化
             chatModule.init('test', contentId);
         }
