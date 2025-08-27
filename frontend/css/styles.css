@@ -174,10 +174,12 @@ body {
             position: absolute;
             top: var(--header-height);
             left: 0;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+            border-radius: 0 var(--border-radius-lg) var(--border-radius-lg) 0;
             height: calc(100% - var(--header-height));
             width: 300px; /* 展开时的宽度 */
             background: var(--panel-background);
-            border-right: 1px solid var(--border-color);
             box-shadow: var(--shadow-light);
             transform: translateX(-100%); /* 初始隐藏 */
             transition: transform 0.3s ease;
