@@ -46,7 +46,7 @@
     {
       "name": "button按钮元素位置检查",
       "type": "custom_script",
-      "script": "return document.querySelector('input').getBoundingClientRect().top < document.querySelector('button).getBoundingClientRect().top",
+      "script": "return document.querySelector('input').getBoundingClientRect().top < document.querySelector('button').getBoundingClientRect().top",
       "feedback": "button元素应该在input元素下方。"
     },
     {
