@@ -1,8 +1,13 @@
 import uvicorn
+import os
+import pytz
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.api import api_router
 from app.core.config import settings
+
+# 设置时区为上海
+os.environ['TZ'] = 'Asia/Shanghai'
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

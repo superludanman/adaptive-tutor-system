@@ -116,24 +116,55 @@ Above all: DO NOT DO THE USER'S WORK FOR THEM. Don't answer homework questions -
                 if mastery_info:
                     student_info_parts.append(f"LEARNING PROGRESS: Student's mastery levels - {', '.join(mastery_info)}")
 
-            # 添加行为计数器信息
-            if hasattr(user_state, 'behavior_counters') and user_state.behavior_counters:
-                behavior_info = []
-                counters = user_state.behavior_counters
+            # 添加行为模式信息
+            if hasattr(user_state, 'behavior_patterns') and user_state.behavior_patterns:
+                patterns = user_state.behavior_patterns
+                pattern_info = []
+                
+                if 'error_frequency' in patterns:
+                    pattern_info.append(f"error frequency: {patterns.get('error_frequency', 0):.2f}")
+                if 'help_seeking_tendency' in patterns:
+                    pattern_info.append(f"help-seeking tendency: {patterns.get('help_seeking_tendency', 0):.2f}")
+                if 'learning_velocity' in patterns:
+                    pattern_info.append(f"learning velocity: {patterns.get('learning_velocity', 0):.2f}")
 
-                # 错误计数
-                if 'error_count' in counters:
-                    behavior_info.append(f"errors: {counters['error_count']}")
-
-                # 提交时间戳
-                if 'submission_timestamps' in counters and counters['submission_timestamps']:
-                    submission_count = len(counters['submission_timestamps'])
-                    behavior_info.append(f"submissions: {submission_count}")
-
-                if behavior_info:
-                    student_info_parts.append(f"BEHAVIOR: Student has {', '.join(behavior_info)}")
+                if pattern_info:
+                    student_info_parts.append(f"BEHAVIOR METRICS: {', '.join(pattern_info)}")
 
             prompt_parts.append("\n".join(student_info_parts))
+
+            # 添加知识点访问历史
+            if hasattr(user_state, 'behavior_patterns') and user_state.behavior_patterns.get('knowledge_level_history'):
+                history = user_state.behavior_patterns['knowledge_level_history']
+                if history:
+                    topic_summaries = []
+                    # Sort topics for consistent ordering
+                    sorted_topics = sorted(history.keys())
+                    
+                    for topic_id in sorted_topics:
+                        topic_history = history[topic_id]
+                        if not topic_history:
+                            continue
+                        
+                        topic_details = [f"  For Topic '{topic_id}':"]
+                        # Sort levels for consistent ordering
+                        sorted_levels = sorted(topic_history.keys(), key=lambda x: int(x))
+                        
+                        for level in sorted_levels:
+                            stats = topic_history[level]
+                            visits = stats.get('visits', 0)
+                            duration_sec = stats.get('total_duration_ms', 0) / 1000
+                            topic_details.append(f"  - Level {level}: Visited {visits} time(s), total duration {duration_sec:.1f} seconds.")
+                        
+                        if len(topic_details) > 1:
+                            topic_summaries.append("\\n".join(topic_details))
+
+                    if topic_summaries:
+                        full_history_summary = "\\n".join(topic_summaries)
+                        prompt_parts.append(f"""
+LEARNING FOCUS: Please pay close attention to the student's behavior patterns to better understand their learning state. Remember that higher knowledge levels are more difficult.
+- **Knowledge Level Exploration**: The student has explored the following knowledge levels. Use their visit order, frequency, and dwell time to infer their interests and potential difficulties.
+{full_history_summary}""")
 
         # 添加RAG上下文 (在用户状态信息之后，任务上下文之前)
         if retrieved_context:
@@ -148,7 +179,10 @@ Above all: DO NOT DO THE USER'S WORK FOR THEM. Don't answer homework questions -
         elif mode == "test":
             prompt_parts.append("MODE: The student is in test mode. Guide them to find the answer themselves. Do not give the answer directly.")
             # 分阶段debug逻辑
-            question_count = user_state.behavior_counters.get(f"question_count_{content_title}", 0)
+            # TODO：使用统一提示词模版
+            question_count = 0
+            if hasattr(user_state, 'behavior_patterns'):
+                question_count = user_state.behavior_patterns.get(f"question_count_{content_title}", 0)
             if question_count == 0:
                 prompt_parts.append("DEBUGGING STRATEGY: This is the first time the student is asking about this. Provide a small hint.")
             elif question_count == 1:

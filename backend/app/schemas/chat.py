@@ -83,6 +83,7 @@ class UserStateSummary(BaseModel):
     participant_id: str
     emotion_state: Dict[str, Any]
     behavior_counters: Dict[str, Any]
+    behavior_patterns: Dict[str, Any] = Field(default_factory=dict)
     bkt_models: Dict[str, Any]
     is_new_user: bool
     last_updated: datetime = Field(default_factory=lambda: datetime.now(UTC))

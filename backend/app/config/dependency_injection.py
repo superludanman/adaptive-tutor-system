@@ -1,3 +1,6 @@
+import redis
+
+from app.core.config import settings
 from app.services.sandbox_service import SandboxService, DefaultPlaywrightManager
 from app.services.user_state_service import UserStateService
 from app.services.sentiment_analysis_service import sentiment_analysis_service
@@ -52,18 +55,28 @@ def get_sandbox_service():
         return ProductionConfig.create_sandbox_service()
 
 
-# UserStateService 单例实例
-_user_state_service_instance = None
+_redis_client_instance = None
 
-def get_user_state_service() -> UserStateService:
+def get_redis_client() -> redis.Redis:
     """
-    获取 UserStateService 单例实例
-    通过 DI 容器管理，确保整个应用中只有一个实例来维护用户状态一致性
+    获取 Redis 客户端单例实例
     """
-    global _user_state_service_instance
-    if _user_state_service_instance is None:
-        _user_state_service_instance = UserStateService()
-    return _user_state_service_instance
+    global _redis_client_instance
+    if _redis_client_instance is None:
+        # 确保 decode_responses=False，以便 redis-py 返回字节
+        # redis-py 的 JSON 命令需要字节作为输入
+        _redis_client_instance = redis.from_url(
+            settings.REDIS_URL,
+            decode_responses=False
+        )
+    return _redis_client_instance
+
+def get_user_state_service(redis_client: redis.Redis) -> UserStateService:
+    """
+    获取 UserStateService 实例
+    """
+    return UserStateService(redis_client=redis_client)
+
 
 
 # --- AI服务依赖注入 ---
@@ -117,14 +130,14 @@ def get_rag_service():
         return None
 
 
-def create_dynamic_controller():
+def create_dynamic_controller(redis_client: redis.Redis):
     """
     创建动态控制器实例，注入所有依赖
     """
     from app.services.dynamic_controller import DynamicController
 
     return DynamicController(
-        user_state_service=get_user_state_service(),
+        user_state_service=get_user_state_service(redis_client=redis_client),
         sentiment_service=get_sentiment_analysis_service(),
         rag_service=get_rag_service(),
         prompt_generator=get_prompt_generator(),
@@ -139,9 +152,12 @@ def get_dynamic_controller():
     """
     获取动态控制器实例（单例模式）
     """
-    global _dynamic_controller_instance
+    global _dynamic_controller_instance, _redis_client_instance
     if _dynamic_controller_instance is None:
-        _dynamic_controller_instance = create_dynamic_controller()
+        # 获取Redis客户端实例
+        if _redis_client_instance is None:
+            _redis_client_instance = get_redis_client()
+        _dynamic_controller_instance = create_dynamic_controller(redis_client=_redis_client_instance)
     return _dynamic_controller_instance
 
 

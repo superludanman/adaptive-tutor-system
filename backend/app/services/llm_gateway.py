@@ -24,6 +24,51 @@ class LLMGateway:
             base_url=self.api_base
         )
     
+    def get_completion_sync(
+        self, 
+        system_prompt: str, 
+        messages: List[Dict[str, str]],
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None
+    ) -> str:
+        """
+        同步获取LLM完成结果
+        
+        Args:
+            system_prompt: 系统提示词
+            messages: 消息列表
+            max_tokens: 最大token数
+            temperature: 温度参数
+            
+        Returns:
+            str: LLM生成的回复
+        """
+        try:
+            # 构建完整的消息列表
+            full_messages = [{"role": "system", "content": system_prompt}] + messages
+            
+            # 使用传入的参数或默认值
+            max_tokens = max_tokens or self.max_tokens
+            temperature = temperature or self.temperature
+            
+            # 直接调用OpenAI客户端（同步）
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=full_messages,
+                max_tokens=max_tokens,
+                temperature=temperature
+            )
+            
+            # 提取回复内容
+            if response.choices and len(response.choices) > 0:
+                return response.choices[0].message.content
+            else:
+                return "I apologize, but I couldn't generate a response at this time."
+                
+        except Exception as e:
+            print(f"Error calling LLM API: {e}")
+            return f"I apologize, but I encountered an error: {str(e)}"
+    
     async def get_completion(
         self, 
         system_prompt: str, 

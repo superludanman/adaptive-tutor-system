@@ -15,9 +15,11 @@ class EventType(str, Enum):
     TEST_SUBMISSION = "test_submission"
     DOM_ELEMENT_SELECT = "dom_element_select"
     USER_IDLE = "user_idle"
-    PAGE_FOCUS_CHANGE = "page_focus_change"
+    CLICK="click"
+    KNOWLEDGE_LEVEL_ACCESS = "knowledge_level_access"
     STATE_SNAPSHOT = "state_snapshot"
     PAGE_CLICK="page_click"
+
 
 
 class CodeEditData(BaseModel):
@@ -71,13 +73,19 @@ class UserIdleData(BaseModel):
     duration_ms: int = Field(..., gt=0, description="闲置时长（毫秒）")
 
 
-class PageFocusChangeData(BaseModel):
-    """页面焦点变化数据
+class KnowledgeLevelAccessData(BaseModel):
+    """知识点访问事件数据
     
     Attributes:
-        status: 焦点状态，'focus' 或 'blur'
+        topic_id: 主题ID
+        level: 知识点级别
+        action: 动作：进入或离开
+        duration_ms: 停留时长（毫秒），仅在leave时提供
     """
-    status: Literal["focus", "blur"] = Field(..., description="焦点状态")
+    topic_id: str = Field(..., description="主题ID")
+    level: int = Field(..., description="知识点级别")
+    action: Literal["enter", "leave"] = Field(..., description="动作：进入或离开")
+    duration_ms: Optional[int] = Field(None, description="停留时长（毫秒），仅在leave时提供")
 
 
 class StateSnapshotData(BaseModel):
@@ -95,8 +103,10 @@ EventDataType = Union[
     SubmissionData,
     DomElementSelectData,
     UserIdleData,
-    PageFocusChangeData,
-    StateSnapshotData
+    KnowledgeLevelAccessData,
+    StateSnapshotData,
+    # todo:
+
 ]
 
 
