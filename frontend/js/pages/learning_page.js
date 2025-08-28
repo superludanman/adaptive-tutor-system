@@ -2,6 +2,7 @@
 // ==================== 导入模块 ====================
 // 导入配置模块
 import { AppConfig, buildBackendUrl, initializeConfig } from '../modules/config.js';
+import { MiniKnowledgeGraph } from '../modules/mini_knowledge_graph.js';
 import { setupHeaderTitle, setupBackButton, getUrlParam, trackReferrer,navigateTo } from '../modules/navigation.js';
 // 导入功能模块
 import { 
@@ -49,6 +50,13 @@ const AppState = {
     isDataLoaded: false,
     initPromise: null
 };
+
+const miniGraph = new MiniKnowledgeGraph('containerId', {
+  height: 200,
+  nodeSize: 20,
+  chapterNodeSize: 30,
+  fontSize: 10
+});
 
 // 应用数据存储，用于管理API数据
 const AppDataStore = {
@@ -260,6 +268,20 @@ async function initializeModules(topicId) {
     // 初始化知识点模块
     knowledgeModule = new KnowledgeModule();
     console.log('[MainApp] 知识点模块初始化完成');
+
+    // 初始化简化知识图谱
+    try {
+        const miniGraph = new MiniKnowledgeGraph('miniGraphContainer', {
+        height: 200,
+        nodeSize: 20,
+        chapterNodeSize: 30,
+        fontSize: 10
+        });
+        await miniGraph.init();
+        console.log('[MainApp] 简化知识图谱初始化完成');
+    } catch (error) {
+        console.error('[MainApp] 简化知识图谱初始化失败:', error);
+    }
     
     // 初始化聊天模块
     try {
