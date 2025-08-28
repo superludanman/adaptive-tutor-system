@@ -1,7 +1,7 @@
 // 导入模块
 import { getParticipantId } from '../modules/session.js';
 import { marked } from "https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js";
-import { setupHeaderTitle, setupBackButton, getUrlParam, debugUrlParams, getReturnUrl  } from '../modules/navigation.js';
+import { setupBackButton, getUrlParam, debugUrlParams, getReturnUrl  } from '../modules/navigation.js';
 import tracker from '../modules/behavior_tracker.js';
 import chatModule from '../modules/chat.js';
 
@@ -193,8 +193,6 @@ function displayTestResult(result) {
 
 // 主程序入口
 document.addEventListener('DOMContentLoaded', function() {
-    // 设置标题和返回按钮
-    setupHeaderTitle('/pages/knowledge_graph.html');
     // 设置返回按钮
     setupBackButton();
     // 调试信息

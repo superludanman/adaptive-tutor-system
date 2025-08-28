@@ -17,14 +17,27 @@
               标题
             </h1>
             <div class="user-profile">
-              <button class="back-button" id="backButton">
-                <iconify-icon icon="mdi:arrow-left" width="20" height="20"></iconify-icon>
-                返回
-              </button>
               <iconify-icon icon="mdi:account-circle" width="36" height="36"></iconify-icon>
             </div>
         </header>
         <div class="content-container">
+          <!-- 侧边导航栏 -->
+          <div class="sidebar-section" id="sidebarSection">
+              <div class="sidebar-header">
+                  <h3 class="sidebar-title">
+                      <iconify-icon icon="mdi:book-multiple" width="20" height="20"></iconify-icon>
+                      知识点导航
+                  </h3>
+                  <button class="sidebar-toggle" id="sidebarToggle">
+                      <iconify-icon icon="mdi:chevron-right" width="20" height="20"></iconify-icon>
+                  </button>
+              </div>
+              <div class="sidebar-content">
+                  <ul class="nav-menu" id="navMenu">
+                      <!-- 导航内容将由JavaScript动态生成 -->
+                  </ul>
+              </div>
+          </div>
           <!-- 左侧组合列（占 60% 宽） -->
           <div class="left-group">
             <!-- 上排：预览 + 代码（合并成一个div） -->
@@ -36,7 +49,7 @@
                     <div class="ratio-16x9">
                       <iframe
                         id="element-selector-iframe"
-                        src="example_pages/index01.html"
+                        src="example_pages/index.html"
                       ></iframe>
                     </div>
                 </div>
