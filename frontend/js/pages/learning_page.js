@@ -39,6 +39,7 @@ let allowedElements = {
     current: []
 };
 let currentTopicId = '1_1'; // 默认主题ID
+let selectedElementInfo = null; // 保存当前选中的元素信息
 
 // 模块实例
 let knowledgeModule = null;
@@ -532,6 +533,8 @@ function initEventListeners() {
     const tabCode = document.getElementById('tab-code');
     const knowledgeContent = document.getElementById('knowledge-content');
     const codeContent = document.getElementById('code-content');
+    const askAIButton = document.getElementById('askAIButton');
+    const clearSelectionButton = document.getElementById('clearSelectionButton');
 
     // 启动选择器
     if (startButton) {
@@ -540,7 +543,7 @@ function initEventListeners() {
             // 切换按钮状态
             if (startButton && stopButton) {
                 startButton.style.display = 'none';
-                stopButton.style.display = 'inline-block';
+                stopButton.style.display = 'flex';
             }
         });
     }
@@ -551,9 +554,44 @@ function initEventListeners() {
             stopSelector(bridge);
             // 切换按钮状态
             if (startButton && stopButton) {
-                startButton.style.display = 'inline-block';
+                startButton.style.display = 'flex';
                 stopButton.style.display = 'none';
             }
+            // 注意：不隐藏AI询问按钮，让它保持显示状态
+            // AI按钮的显示状态基于是否有选中的元素，而不是选择器状态
+        });
+    }
+    
+    // AI询问按钮
+    if (askAIButton) {
+        askAIButton.addEventListener('click', () => {
+            askAIAboutElement();
+        });
+    }
+    
+    // 清除选择按钮
+    if (clearSelectionButton) {
+        clearSelectionButton.addEventListener('click', () => {
+            // 清除选中的元素信息
+            selectedElementInfo = null;
+            
+            // 隐藏AI询问按钮
+            askAIButton.classList.remove('show');
+            // 重置AI询问按钮的样式
+            askAIButton.style.display = 'none';
+            askAIButton.style.visibility = 'hidden';
+            
+            // 隐藏清除选择按钮
+            clearSelectionButton.style.display = 'none';
+            clearSelectionButton.style.visibility = 'hidden';
+            
+            // 清空代码面板
+            const codeContent = document.getElementById('code-content');
+            if (codeContent) {
+                codeContent.innerHTML = '<h2>选中元素代码</h2><pre id="selectedElementCode"></pre>';
+            }
+            
+            showStatus('info', '已清除选中的元素');
         });
     }
     
@@ -621,18 +659,43 @@ function initBehaviorTracker() {
 // 创建带行为追踪的元素选择处理函数
 function createElementSelectedWithTracking() {
     return function(elementInfo, showStatus) {
-        // 不再显示选中的元素信息
-        // const statusMessage = `已选择: ${elementInfo.tagName}${elementInfo.id ? '#' + elementInfo.id : ''}${elementInfo.className ? '.' + elementInfo.className.split(' ')[0] : ''}`;
-        // if (showStatus && typeof showStatus === 'function') {
-        //     showStatus('success', statusMessage);
-        // }
+        console.log('元素选择处理函数被调用，选中的元素信息:', elementInfo);
+        
+        // 保存选中的元素信息
+        selectedElementInfo = elementInfo;
         
         // 自动切换按钮状态
         const startButton = document.getElementById('startSelector');
         const stopButton = document.getElementById('stopSelector');
+        const askAIButton = document.getElementById('askAIButton');
+        const clearSelectionButton = document.getElementById('clearSelectionButton');
+        
+        console.log('获取到的按钮元素:', {startButton, stopButton, askAIButton, clearSelectionButton});
+        
         if (startButton && stopButton) {
-            startButton.style.display = 'inline-block';
+            startButton.style.display = 'flex';
             stopButton.style.display = 'none';
+        }
+        
+        // 显示AI询问按钮
+        if (askAIButton) {
+            console.log('准备显示AI询问按钮');
+            askAIButton.classList.add('show');
+            // 强制设置样式
+            askAIButton.style.display = 'flex';
+            askAIButton.style.opacity = '1';
+            askAIButton.style.transform = 'translateY(0)';
+            // 确保按钮可见
+            askAIButton.style.visibility = 'visible';
+            console.log('AI询问按钮显示完成，当前类名:', askAIButton.className);
+        }
+        
+        // 显示清除选择按钮
+        if (clearSelectionButton) {
+            console.log('显示清除选择按钮');
+            clearSelectionButton.style.display = 'flex';
+            // 确保按钮可见
+            clearSelectionButton.style.visibility = 'visible';
         }
         
         // 获取选中元素的源代码并显示到代码面板
@@ -774,9 +837,9 @@ function displaySelectedElementCode(elementInfo) {
             <div class="code-header">
                 <h4>选中的元素代码</h4>
                 <div class="element-info">
-                    <span class="tag-name">${elementInfo.tagName}</span>
-                    ${elementInfo.id ? `<span class="element-id">#${elementInfo.id}</span>` : ''}
-                    ${elementInfo.className ? `<span class="element-class">.${elementInfo.className.split(' ')[0]}</span>` : ''}
+                    <span class="tag-name" title="<${elementInfo.tagName}>">&lt;${elementInfo.tagName}&gt;</span>
+                    ${elementInfo.id ? `<span class="element-id" title="ID: ${elementInfo.id}">#${elementInfo.id}</span>` : ''}
+                    ${elementInfo.className ? `<span class="element-class" title="Class: ${elementInfo.className.split(' ')[0]}">.${elementInfo.className.split(' ')[0]}</span>` : ''}
                 </div>
             </div>
             <pre class="code-block"><code class="language-html">${formattedHTML}</code></pre>
@@ -852,6 +915,49 @@ function showStatus(type, message) {
         setTimeout(() => {
             statusBadge.style.display = 'none';
         }, 3000);
+    }
+}
+
+// 询问AI关于选中元素的功能
+function askAIAboutElement() {
+    if (!selectedElementInfo) {
+        showStatus('warning', '请先选择一个元素');
+        return;
+    }
+    
+    // 构建询问消息
+    let elementDescription = `我想了解这个HTML元素的功能：<${selectedElementInfo.tagName}>`;
+    
+    if (selectedElementInfo.id) {
+        elementDescription += ` ID: #${selectedElementInfo.id}`;
+    }
+    
+    if (selectedElementInfo.className) {
+        elementDescription += ` Class: .${selectedElementInfo.className}`;
+    }
+    
+    elementDescription += `\n\n元素的HTML代码:\n${selectedElementInfo.outerHTML || '无可用代码'}`;
+    
+    // 发送消息到AI
+    if (chatModule && typeof chatModule.sendMessage === 'function') {
+        // 切换到AI聊天标签页（如果存在）
+        const tabChat = document.getElementById('tab-chat');
+        if (tabChat) {
+            tabChat.click();
+        }
+        
+        // 发送消息给AI
+        const userMessageInput = document.getElementById('user-message');
+        if (userMessageInput) {
+            userMessageInput.value = elementDescription;
+        }
+        
+        // 触发发送事件
+        chatModule.sendMessage('learning', currentTopicId);
+        
+        showStatus('info', '已向AI询问关于选中元素的信息');
+    } else {
+        showStatus('error', 'AI聊天模块未初始化');
     }
 }
 
