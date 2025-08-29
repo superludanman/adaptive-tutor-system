@@ -1,31 +1,42 @@
 {
-  "topic_id":"3.3",
+  "topic_id": "3_3",
   "title": "表单提交机制",
-  "description_md": "# 表单提交机制\n## 任务描述：\n为下面的表单创建一个表单提交机制，使用onsubmit属性，赋值handleForm(event)函数。",
+  "description_md": "# 表单提交机制\n## 任务描述：\n请为下面的用户注册表单添加表单提交机制。要求使用<form>元素包裹所有表单控件，并通过onsubmit属性绑定一个名为handleRegister的JavaScript函数来处理提交事件。确保提交时阻止默认行为并在控制台输出“注册信息已处理”。",
   "start_code": {
-    "html": "<label><input type=\"checkbox\" name=\"likes\" value=\"晒太阳\"> 喜欢晒太阳</label>\n<label><input type=\"checkbox\" name=\"likes\" value=\"抓老鼠\"> 爱抓老鼠</label>\n<label>性别偏好：</label>\n<label><input type=\"radio\" name=\"gender\" value=\"公\"> 公猫</label>\n<label><input type=\"radio\" name=\"gender\" value=\"母\"> 母猫</label>\n<button type=\"submit\">提交</button>",
+    "html": "<label>用户名：<input type=\"text\" name=\"username\"></label>\n<label>邮箱：<input type=\"email\" name=\"email\"></label>\n<button type=\"submit\">注册</button>",
     "css": "",
     "js": ""
   },
   "checkpoints": [
     {
       "name": "form元素存在检查",
-      "type": "assert_attribute",
+      "type": "assert_element",
       "selector": "form",
-      "attribute": "",
       "assertion_type": "exists",
-      "value": "",
-      "feedback": "请检查form元素是否存在。"
+      "feedback": "请确保使用<form>元素包裹所有表单控件。"
     },
     {
-        "name": "onsubmit属性检查",
-        "type": "assert_attribute",
-        "selector": "form",
-        "attribute": "onsubmit",
-        "assertion_type": "equals",
-        "value": "handleForm(event)",
-        "feedback": "请为form元素添加onsubmit属性，并赋值handleForm(event)函数。"
+      "name": "onsubmit属性检查",
+      "type": "assert_attribute",
+      "selector": "form",
+      "attribute": "onsubmit",
+      "assertion_type": "equals",
+      "value": "return handleRegister(event)",
+      "feedback": "请为form元素添加onsubmit属性，并赋值return handleRegister(event)。"
+    },
+    {
+      "name": "提交按钮类型检查",
+      "type": "assert_attribute",
+      "selector": "button",
+      "attribute": "type",
+      "assertion_type": "equals",
+      "value": "submit",
+      "feedback": "请确保提交按钮的type属性为submit。"
     }
-  ]
+  ],
+  "answer": {
+    "html": "<form onsubmit=\"return handleRegister(event)\">\n  <label>用户名：<input type=\"text\" name=\"username\"></label>\n  <label>邮箱：<input type=\"email\" name=\"email\"></label>\n  <button type=\"submit\">注册</button>\n</form>",
+    "css": "",
+    "js": "function handleRegister(event) {\n  event.preventDefault();\n  console.log('注册信息已处理');\n  return false;\n}"
+  }
 }
-

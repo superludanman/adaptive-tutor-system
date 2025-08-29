@@ -1,9 +1,9 @@
 {
-  "topic_id":"1_3",
+  "topic_id": "1_3",
   "title": "构建页面基本结构",
-  "description_md": "# 任务描述：\n## 任务一：\n请完成html的头部结构，包含<!DOCTYPE html>声明、<html>和<head>标签。\n## 任务二：\n将html语言设置为中文。\n## 任务三：\n将网页的字符编码定义为UTF-8。\n## 任务四：\n设置网页的viewport，设置宽度与设备屏幕一致，并设置网页的缩放比例。\n## 任务五：\n设置网页的标题为猫咪展示 Demo。\n##任务六：\n请完成body标签的定义，你的页面内容会在这里显示！\n##任务七：\n请在<body>标签内部添加<footer>标签完成页面底部信息的定义。\n## 示例代码：\n```\n<!DOCTYPE html>\n<html lang=\"zh\">\n\t<head>\n\t\t<meta charset=\"UTF-8\">\n\t\t<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n\t\t<title>猫咪展示 Demo</title>\n\t</head>\n<body>\n</body>\n</html>\n```",
+  "description_md": "# 任务描述：\n## 任务一：\n请完成HTML文档的基本结构，包含<!DOCTYPE html>声明、<html>和<head>标签。\n## 任务二：\n将<html>标签的语言属性设置为中文。\n## 任务三：\n在<head>标签内添加<meta charset=\"UTF-8\">，定义字符编码为UTF-8。\n## 任务四：\n添加<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">，设置响应式布局。\n## 任务五：\n在<head>标签内添加<title>标签，设置网页标题为“编程学习教程”。\n## 任务六：\n添加<body>标签，作为页面内容的容器。\n## 任务七：\n在<body>标签内添加<footer>标签，用于显示页面底部信息。\n## 示例代码：\n```\n<!DOCTYPE html>\n<html lang=\"zh\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>编程学习教程</title>\n</head>\n<body>\n    <footer>© 2025 编程学习教程</footer>\n</body>\n</html>\n```",
   "start_code": {
-    "html": "#请在此处完成html基础结构的定义！",
+    "html": "#请在此处完成HTML基础结构的定义！",
     "css": "",
     "js": ""
   },
@@ -18,7 +18,7 @@
       "name": "<html>标签及语言设置检查",
       "type": "custom_script",
       "script": "return !!document.documentElement && document.documentElement.lang === 'zh';",
-      "feedback": "请在代码最顶端添加<!DOCTYPE html>声明。"
+      "feedback": "请确保<html>标签存在，并设置lang属性为'zh'。"
     },
     {
       "name": "<head>标签检查",
@@ -55,8 +55,8 @@
       "type": "assert_text_content",
       "selector": "title",
       "assertion_type": "equals",
-      "value": "猫咪展示 Demo",
-      "feedback": "请<title>标签内设置网页的标题为猫咪展示 Demo。"
+      "value": "编程学习教程",
+      "feedback": "请<title>标签内设置网页的标题为“编程学习教程”。"
     },
     {
       "name": "<body>标签检查",
@@ -70,6 +70,10 @@
       "script": "return document.querySelector('body').contains(document.querySelector('footer'))",
       "feedback": "请在<body>标签内添加<footer>标签。"
     }
-  ]
+  ],
+  "answer": {
+    "html": "<!DOCTYPE html>\n<html lang=\"zh\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>编程学习教程</title>\n</head>\n<body>\n    <footer>© 2025 编程学习教程</footer>\n</body>\n</html>",
+    "css": "",
+    "js": ""
+  }
 }
-

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>元素选择+知识点展示</title>
+    <script src="../js/modules/cytoscape.min.js"></script>
     <link rel="stylesheet" href="../css/styles.css">
     <!-- Iconify图标库 -->
   <script src="../js/modules/iconify-icon.min.js"></script>
@@ -11,11 +12,15 @@
 <body>
     <div class="main-container">
       <!-- 顶部标题栏 -->
-        <header class="top-header">
+        <header class="top-header-lean">
             <h1 class="header-title" id="headerTitle">
               <iconify-icon icon="mdi:book-education" width="24" height="24"></iconify-icon>
               标题
             </h1>
+            <!-- 简化的知识图谱预览 -->
+             <div class="mini-knowledge-graph">
+              <div class="mini-graph-container" id="miniGraphContainer"></div>
+            </div>
             <div class="user-profile">
               <button class="back-button" id="backButton">
                 <iconify-icon icon="mdi:arrow-left" width="20" height="20"></iconify-icon>
