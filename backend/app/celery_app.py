@@ -71,7 +71,7 @@ def init_worker_process(sender=None, **kwargs):
             # 注意：create_dynamic_controller 内部会创建自己的 UserStateService 实例
             redis_client = get_redis_client()
             _dynamic_controller_instance = create_dynamic_controller(redis_client=redis_client)
-            
+
             # 预加载RAG服务（如果启用）
             try:
                 from app.config.dependency_injection import get_rag_service
@@ -87,7 +87,7 @@ def init_worker_process(sender=None, **kwargs):
                         logger.warning(f"Failed to warm up embedding model: {warmup_error}")
             except Exception as e:
                 logger.error(f"Failed to preload RAG service: {e}")
-            
+
             logger.info("DynamicController initialized.")
     else:
         logger.info(f"Worker (PID: {os.getpid()}) is not serving 'chat_queue'. Skipping DynamicController initialization.")

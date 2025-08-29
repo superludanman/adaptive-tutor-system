@@ -64,6 +64,7 @@ Thumbs.db
 *.env
 secrets.ini
 
+save/
 # 模型文件
 models/
 download_model.log

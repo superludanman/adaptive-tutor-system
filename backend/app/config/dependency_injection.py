@@ -7,7 +7,7 @@ from app.services.sentiment_analysis_service import sentiment_analysis_service
 from app.services.llm_gateway import llm_gateway
 from app.services.prompt_generator import prompt_generator
 from app.db.database import get_db
-
+from redis.asyncio import Redis
 
 class ProductionConfig:
     """生产环境配置"""
@@ -56,7 +56,7 @@ def get_sandbox_service():
 
 
 _redis_client_instance = None
-
+_redis_async_instance = None
 def get_redis_client() -> redis.Redis:
     """
     获取 Redis 客户端单例实例
@@ -70,7 +70,17 @@ def get_redis_client() -> redis.Redis:
             decode_responses=False
         )
     return _redis_client_instance
-
+def get_aioredis() -> Redis:
+    """
+    获取异步 Redis 客户端 (用于 FastAPI WebSocket 订阅)
+    """
+    global _redis_async_instance
+    if _redis_async_instance is None:
+        _redis_async_instance = Redis.from_url(
+            settings.REDIS_URL,
+            decode_responses=True  # 建议 True，避免 json.loads 出错
+        )
+    return _redis_async_instance
 def get_user_state_service(redis_client: redis.Redis) -> UserStateService:
     """
     获取 UserStateService 实例

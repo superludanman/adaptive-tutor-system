@@ -30,6 +30,9 @@ import chatModule from '../modules/chat.js';
 // 导入API客户端
 import '../api_client.js';
 
+//导入websocket模块
+import websocket from '../modules/websocket_client.js';
+
 console.log('learning_page.js 开始加载...');
 
 // ==================== 变量定义 ====================
@@ -154,7 +157,7 @@ async function initMainApp() {
                 
             } catch (error) {
                 console.error('数据加载失败，使用默认配置:', error);
-                await handleInitializationFailure(topicId);
+                //await handleInitializationFailure(topicId);
                 startButton.disabled = false;
             }
             
@@ -181,8 +184,8 @@ function getRequiredDOMElements() {
 
 // 从URL获取topicId
 function getTopicIdFromURL() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const topicId = urlParams.get('topic') || '1_1'; // 使用默认值
+    const topicData = getUrlParam('topic');
+    const topicId = (topicData && topicData.id) ? topicData.id : '1_1'; // 使用默认值
     currentTopicId = topicId;
     return topicId;
 }
@@ -270,6 +273,15 @@ async function initializeModules(topicId) {
         console.error('[MainApp] 聊天模块初始化失败:', error);
     }
     
+    //初始化websocket模块
+    try{
+        websocket.connect();
+        console.log('[MainApp] WebSocket模块初始化完成');
+    }
+    catch(error){
+        console.error('[MainApp] WebSocket模块初始化失败:', error);
+    }
+    
     // 更新页面标题为实际内容标题
     const topicContent = AppDataStore.getData('topicContent');
     if (topicContent?.title) {
@@ -284,7 +296,7 @@ async function initializeModules(topicId) {
     if (topicContent?.levels) {
         setTopicData(topicContent);
         renderTopicContent();
-    }
+}
 }
 
 // 初始化UI事件
