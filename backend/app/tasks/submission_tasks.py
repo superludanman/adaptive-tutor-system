@@ -19,7 +19,7 @@ def process_submission_task(self, submission_data: dict):
     处理代码提交的重量级任务：评测、更新BKT、触发快照。
     """
     submission_in = TestSubmissionRequest(**submission_data)
-    logger.info("处理代码提交任务:", submission_in)
+    logger.info("处理代码提交任务: %s", submission_in)
     db = SessionLocal()
     user_state_service = get_user_state_service()
 
