@@ -1,6 +1,13 @@
 //import { buildWebSocketUrl } from '../api_client.js';
 import { buildBackendUrl } from './config.js';
 import { getParticipantId } from './session.js';
+function buildWebSocketUrl(endpoint) {
+    const backendUrl = buildBackendUrl(endpoint); 
+    // 将 http:// 或 https:// 替换为 ws:// 或 wss://
+    let wsUrl = backendUrl.replace(/^(http)/, 'ws');
+    return wsUrl;
+}
+
 class WebSocketManager {
             constructor() {
                 this.socket = null;
@@ -36,7 +43,7 @@ class WebSocketManager {
                 }
                 try {
                     //const wsUrl = buildWebSocketUrl(getParticipantId());
-                    const wsUrl = `${buildBackendUrl('/ws/user/')}${getParticipantId()}`
+                    const wsUrl = buildWebSocketUrl(`/ws/user/${getParticipantId()}`);
                     //const wsUrl = `${protocol}//localhost:8000/ws/chat/${this.userId}`;
                     //alert('WebSocket URL: ' + wsUrl);
                     this.socket = new WebSocket(wsUrl);

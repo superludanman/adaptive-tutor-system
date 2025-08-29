@@ -151,18 +151,10 @@ class DynamicController:
 
             # 步骤6: 调用LLM
             #TODO:done表示流式输出是否完成    elapsed:表示当前已经输出多少字
-            ai_response = await self.llm_gateway.get_stream_completion(
+            ai_response = await self.llm_gateway.get_completion(
                 system_prompt=system_prompt,
                 messages=messages
             )
-
-            
-            # ai_response = await self.llm_gateway.get_completion(
-            #     system_prompt=system_prompt,
-            #     messages=messages
-            # )
-
-
             # 步骤7: 构建响应（只包含AI回复内容，符合TDD-II-10设计）
             response = ChatResponse(ai_response=ai_response)
 
