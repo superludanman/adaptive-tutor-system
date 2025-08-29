@@ -111,7 +111,7 @@ function initializeEditors(startCode) {
             }
             
             // 初始化代码改动监控
-            initCodeChangeTracking();
+            initSmartCodeTracking();
 
             // 触发预览更新
             if (typeof updateLocalPreview === 'function') {
@@ -124,33 +124,163 @@ function initializeEditors(startCode) {
 }
 
 
-// 初始化代码改动监控
-function initCodeChangeTracking() {
-    if (window.editorState && tracker && typeof tracker.initCodeChangeTracking === 'function') {
+// 初始化智能代码监控
+// 初始化智能代码监控
+function initSmartCodeTracking() {
+    if (window.editorState && tracker && typeof tracker.initSmartCodeTracking === 'function') {
         const editors = {
             html: window.editorState.htmlEditor,
             css: window.editorState.cssEditor,
             js: window.editorState.jsEditor
         };
         
-        tracker.initCodeChangeTracking(editors);
-        console.log('代码改动监控已启动');
+        // 初始化智能监控
+        tracker.initSmartCodeTracking(editors);
+        console.log('智能代码监控已启动 - 基于事件触发模式');
         
-        // 示例：定期获取分析数据（可根据需要调整）
-        setInterval(() => {
-            const analysis = tracker.getCodeChangeAnalysis();
-            console.log('代码改动分析:', analysis);
-        }, 60000); // 每分钟获取一次分析数据
+        // 设置会话结束处理器（页面关闭时提交总结数据）
+        if (typeof tracker._initSessionEndHandler === 'function') {
+            tracker._initSessionEndHandler();
+        }
+        
+        // 监听问题提示事件
+        document.addEventListener('problemHintNeeded', (event) => {
+            const { editor, editCount, message } = event.detail;
+            console.log(`收到问题提示: ${message}`);
+            
+            // 在AI对话框中显示提示
+            showProblemHintInChat(message, editor, editCount);
+        });
+        
     } else {
-        console.warn('无法初始化代码改动监控：编辑器状态或跟踪器不可用');
+        console.warn('无法初始化智能代码监控：编辑器状态或跟踪器不可用');
     }
+}
+// 在AI对话框中显示提示消息
+// 在AI对话框中显示提示消息（适配现有HTML结构）
+function showProblemHintInChat(message, editorType, editCount) {
+    const chatMessages = document.getElementById('ai-chat-messages');
+    if (!chatMessages) {
+        console.warn('未找到AI聊天消息容器');
+        return;
+    }
+    
+    // 创建AI消息元素 - 匹配现有结构
+    const aiMessage = document.createElement('div');
+    aiMessage.className = 'ai-message';
+    aiMessage.innerHTML = `
+        <div class="ai-avatar">
+            <iconify-icon icon="mdi:robot" width="20" height="20"></iconify-icon>
+        </div>
+        <div class="ai-content">
+            <div class="markdown-content">
+                <div class="problem-hint-container">
+                    <div class="problem-hint-header">
+                        <iconify-icon icon="mdi:lightbulb-on" width="16" height="16" style="color: #ff9800;"></iconify-icon>
+                        <span>学习提示</span>
+                    </div>
+                    <div class="problem-hint-content">
+                        ${message}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 添加提示消息样式（如果尚未添加）
+    if (!document.getElementById('hint-styles')) {
+        const styles = document.createElement('style');
+        styles.id = 'hint-styles';
+        styles.textContent = `
+            .problem-hint-container {
+                background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+                border: 1px solid #ffd54f;
+                border-radius: 8px;
+                padding: 16px;
+                margin: 12px 0;
+                box-shadow: 0 2px 8px rgba(255, 179, 0, 0.15);
+            }
+            
+            .problem-hint-header {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 12px;
+                font-weight: 600;
+                color: #ff6f00;
+                font-size: 15px;
+            }
+            
+            .problem-hint-content {
+                color: #5d4037;
+                line-height: 1.5;
+                margin-bottom: 16px;
+                font-size: 14px;
+            }
+        `;
+        document.head.appendChild(styles);
+    }
+    
+    // 添加到聊天消息中（插入到欢迎消息之后）
+    const welcomeMessage = chatMessages.querySelector('.ai-message');
+    if (welcomeMessage && welcomeMessage.nextSibling) {
+        chatMessages.insertBefore(aiMessage, welcomeMessage.nextSibling);
+    } else {
+        chatMessages.appendChild(aiMessage);
+    }
+    
+    // 平滑滚动到提示消息
+    setTimeout(() => {
+        aiMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+    
+    // 添加进入动画
+    aiMessage.style.opacity = '0';
+    aiMessage.style.transform = 'translateY(20px)';
+    aiMessage.style.transition = 'all 0.3s ease';
+    
+    setTimeout(() => {
+        aiMessage.style.opacity = '1';
+        aiMessage.style.transform = 'translateY(0)';
+    }, 50);
+    
+    // 记录提示事件
+    if (tracker && typeof tracker.logEvent === 'function') {
+        tracker.logEvent('problem_hint_displayed', {
+            editor: editorType,
+            edit_count: editCount,
+            message: message,
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    return aiMessage;
 }
 // 提交逻辑
 function setupSubmitLogic() {
     const submitButton = document.getElementById('submit-button');
+    const runButton = document.getElementById('run-button');
+
     if (!submitButton) return;
     
+        // 测试按钮点击 - 记录测试行为
+    if (runButton) {
+        runButton.addEventListener('click', () => {
+            // 获取当前的编程行为分析
+            const behaviorAnalysis = tracker.getCodingBehaviorAnalysis();
+            console.log('测试时的编程行为分析:', behaviorAnalysis);
+            
+            // 提交测试事件（包含当前行为分析）
+            tracker.logEvent('test_run', {
+                timestamp: new Date().toISOString(),
+                behavior_snapshot: behaviorAnalysis
+            });
+        });
+    }
+
     submitButton.addEventListener('click', async () => {
+        const behaviorAnalysis = tracker.getCodingBehaviorAnalysis();
+        console.log('提交时的编程行为分析:', behaviorAnalysis);
         const originalText = submitButton.textContent;
         submitButton.disabled = true;
         submitButton.textContent = '批改中...';
@@ -159,12 +289,29 @@ function setupSubmitLogic() {
             const topicId = new URLSearchParams(window.location.search).get('topic');
             if (!topicId) throw new Error("主题ID无效。");
             
+            // 提交前的完整行为分析
+            const finalBehaviorAnalysis = tracker.getCodingBehaviorAnalysis();
+            console.log('最终编程行为分析:', finalBehaviorAnalysis);
+
+            // 立即提交会话总结（确保数据不丢失）
+            if (typeof tracker._submitAllData === 'function') {
+                tracker._submitAllData();
+            }
+
             const submissionData = {
                 topic_id: topicId,
                 code: {
                     html: window.editorState.htmlEditor?.getValue() || '',
                     css: window.editorState.cssEditor?.getValue() || '',
                     js: window.editorState.jsEditor?.getValue() || ''
+                },
+                // 包含编程行为分析数据
+                coding_behavior: behaviorAnalysis,
+                // 添加元数据
+                metadata: {
+                    session_start: new Date(finalBehaviorAnalysis.sessionStart || Date.now()).toISOString(),
+                    total_edits: finalBehaviorAnalysis.totalSignificantEdits || 0,
+                    problem_count: finalBehaviorAnalysis.problemEventsCount || 0
                 }
             };
             
@@ -173,9 +320,20 @@ function setupSubmitLogic() {
             if (result.code === 200) {
                 displayTestResult(result.data);
                 if (result.data.passed) {
+                    tracker.logEvent('test_passed', {
+                        topic_id: topicId,
+                        edit_count: finalBehaviorAnalysis.totalSignificantEdits,
+                        problem_count: finalBehaviorAnalysis.problemEventsCount
+                    });
                     alert("测试完成！即将跳转回到知识图谱界面");
                     setTimeout(() => { window.location.href = '/pages/knowledge_graph.html'; }, 3000);
                 } else {
+                    tracker.logEvent('test_failed', {
+                        topic_id: topicId,
+                        edit_count: finalBehaviorAnalysis.totalSignificantEdits,
+                        problem_count: finalBehaviorAnalysis.problemEventsCount,
+                        failure_reason: result.data.message || '未知原因'
+                    });
                     // TODO: 可以考虑直接在这里主动触发AI
                     // 测试未通过，给用户一些鼓励和建议
                     alert("测试未通过，请查看详细结果并继续改进代码。");
@@ -185,6 +343,11 @@ function setupSubmitLogic() {
             }
         } catch (error) {
             console.error('提交测试时出错:', error);
+            // 记录提交错误事件
+            tracker.logEvent('submission_error', {
+                error_message: error.message,
+                timestamp: new Date().toISOString()
+            });
             alert('提交测试时出错: ' + (error.message || '未知错误'));
         } finally {
             submitButton.disabled = false;

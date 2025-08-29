@@ -24,17 +24,420 @@ class BehaviorTracker {
     // code_edit 防抖时长（ms）
     this.debounceMs = 2000;
     this.idleTimer = null;
-    
-    // 代码改动监控相关属性
-    this.codeChangeHistory = [];
-    this.lastChangeTime = Date.now();
-    this.codeStats = {
-      totalChanges: 0,
-      htmlChanges: 0,
-      cssChanges: 0,
-      jsChanges: 0,
-      startTime: Date.now()
+
+    this.hintConfig = {
+    hintThreshold: 3, // 触发提示的连续修改次数阈值
+    cooldownPeriod: 30000, // 提示冷却时间（30秒）
+    lastHintTime: 0 // 上次提示时间
+};
+    // 智能代码监控配置
+    this.codeMonitoringConfig = {
+      minChangeThreshold: 10, // 最小触发字符数变化
+      meaningfulEditTimeout: 3000, // 有意义编辑的超时时间（ms）：防止过度触发：避免将用户的连续输入（如快速打字）误判为多个独立的有意义编辑
+      problemDetectionThreshold: 3, // 问题检测阈值（连续修改次数）：检测反复修改：当用户在短时间内连续修改代码多次（默认3次），认为可能遇到了问题
+      maxHistoryLength: 100 // 最大历史记录长度
     };
+    // 代码监控状态
+    this.codeMonitorStates = {
+      html: this._createEditorState(),
+      css: this._createEditorState(),
+      js: this._createEditorState()
+    };
+    
+    this.problemEvents = []; // 记录用户遇到问题的次数
+    this.significantEdits = []; // 有意义的重要编辑记录
+  }
+
+  // 创建编辑器状态对象
+  _createEditorState() {
+    return {
+      lastContent: '',
+      lastLength: 0,
+      lastMeaningfulEdit: 0,
+      isDeleting: false,
+      deleteStartTime: 0,
+      deleteStartLength: 0,
+      consecutiveEdits: 0,// 连续修改次数
+      editBuffer: []
+    };
+  }
+
+// 触发问题事件（用于UI监听）
+_triggerProblemEvent(problemData) {
+    const event = new CustomEvent('codingProblemDetected', {
+        detail: problemData
+    });
+    document.dispatchEvent(event);
+}
+
+  // -------------------- 智能代码监控核心功能 --------------------
+  /**
+   * 初始化智能代码改动监控
+   */
+  initSmartCodeTracking(editors) {
+    if (!editors) {
+      console.warn('[BehaviorTracker] 无编辑器实例，无法初始化智能代码监控');
+      return;
+    }
+
+    try {
+      // 为每个编辑器设置智能监控
+      Object.keys(editors).forEach(editorType => {
+        if (editors[editorType] && typeof editors[editorType].onDidChangeModelContent === 'function') {
+          editors[editorType].onDidChangeModelContent(() => {
+            this._smartRecordCodeChange(editorType, editors[editorType].getValue());
+          });
+        }
+      });
+
+      console.log('[BehaviorTracker] 智能代码监控已初始化');
+      
+    } catch (e) {
+      console.warn('[BehaviorTracker] 初始化智能代码监控时出错：', e);
+    }
+  }
+
+/**
+   * 智能记录代码改动
+   */
+  _smartRecordCodeChange(editorType, currentContent) {
+    const state = this.codeMonitorStates[editorType];
+    const currentLength = currentContent.length;
+    const previousLength = state.lastLength;
+    const lengthChange = currentLength - previousLength;
+    
+    // 更新最后内容
+    state.lastContent = currentContent;
+    state.lastLength = currentLength;
+    
+    const now = Date.now();
+    const timeSinceLastEdit = now - state.lastMeaningfulEdit;
+    
+    // 判断编辑类型
+    if (lengthChange < 0) {
+      // 删除操作
+      this._handleDeletion(editorType, state, currentLength, now);
+    } else if (lengthChange > 0) {
+      // 增加操作
+      this._handleAddition(editorType, state, lengthChange, currentLength, now, timeSinceLastEdit);
+    }
+    
+    // 缓冲当前编辑信息（用于后续分析）
+    state.editBuffer.push({
+      timestamp: now,
+      length: currentLength,
+      change: lengthChange,
+      content: currentContent
+    });
+    
+    // 保持缓冲区大小
+    if (state.editBuffer.length > 20) {
+      state.editBuffer.shift();
+    }
+  }
+  /**
+   * 处理删除操作
+   */
+  _handleDeletion(editorType, state, currentLength, timestamp) {
+    if (!state.isDeleting) {
+      // 开始删除
+      state.isDeleting = true;
+      state.deleteStartTime = timestamp;
+      state.deleteStartLength = state.lastLength;
+      state.consecutiveEdits++;
+      
+      console.log(`[${editorType}] 开始删除代码`);
+    }
+  }
+
+  /**
+   * 处理增加操作
+   */
+  _handleAddition(editorType, state, lengthChange, currentLength, timestamp, timeSinceLastEdit) {
+    if (state.isDeleting) {
+      // 之前是删除状态，现在是增加 → 完成一个修改周期
+      this._completeEditCycle(editorType, state, timestamp, currentLength);
+    } else if (lengthChange >= this.codeMonitoringConfig.minChangeThreshold && 
+               timeSinceLastEdit > this.codeMonitoringConfig.meaningfulEditTimeout) {
+      // 有意义的正向编辑（超过阈值且有一定时间间隔）
+      this._recordMeaningfulEdit(editorType, 'addition', lengthChange, currentLength, timestamp);
+    }
+    
+    state.consecutiveEdits++;
+    state.lastMeaningfulEdit = timestamp;
+  }
+
+  /**
+   * 完成编辑周期（删除后重新编写）
+   */
+  _completeEditCycle(editorType, state, timestamp, finalLength) {
+    const deleteDuration = timestamp - state.deleteStartTime;// 删除持续时间
+    const netChange = finalLength - state.deleteStartLength;
+    const absoluteChange = Math.abs(netChange);
+    
+    // 只有变化超过阈值才记录
+    if (absoluteChange >= this.codeMonitoringConfig.minChangeThreshold) {
+      const editRecord = {
+        type: 'edit_cycle',
+        editor: editorType,
+        timestamp: timestamp,
+        duration: deleteDuration,
+        netChange: netChange,
+        absoluteChange: absoluteChange,
+        startLength: state.deleteStartLength,
+        endLength: finalLength,
+        consecutiveEdits: state.consecutiveEdits
+      };
+      
+      this.significantEdits.push(editRecord);
+      
+      // 保持记录数量
+      if (this.significantEdits.length > this.codeMonitoringConfig.maxHistoryLength) {
+        this.significantEdits.shift();
+      }
+      
+      // 输出到控制台
+      this._logSignificantEdit(editRecord);
+      
+      // 检测是否遇到问题（连续多次修改）
+      if (state.consecutiveEdits >= this.codeMonitoringConfig.problemDetectionThreshold) {
+        this._recordProblemEvent(editorType, state.consecutiveEdits, timestamp);
+      }
+      // 批量提交逻辑：每积累5个重要编辑或遇到问题时提交
+      if (this.significantEdits.length >= 5 || 
+          state.consecutiveEdits >= this.codeMonitoringConfig.problemDetectionThreshold) {
+          this._submitSignificantEdits();
+      }
+    }
+    
+    // 重置状态
+    state.isDeleting = false;
+    state.deleteStartTime = 0;// 删除开始时间
+    state.deleteStartLength = 0;// 删除开始时的长度
+    state.consecutiveEdits = 0;
+  }
+
+  // 批量提交重要编辑
+  // 触发条件：积累5个重要编辑或遇到问题时
+  // 冷却周期：无固定冷却，基于数量阈值
+  // 提交策略：批量提交
+  _submitSignificantEdits() {
+      if (this.significantEdits.length === 0) return;
+      
+      const editsToSubmit = this.significantEdits.slice(-5); // 提交最近5个
+      this.logEvent('significant_edits', {
+          count: editsToSubmit.length,
+          edits: editsToSubmit,
+          timestamp: new Date().toISOString()
+      });
+      
+      console.log(`批量提交 ${editsToSubmit.length} 个重要编辑事件`);
+  }
+  // 在页面卸载或会话结束时提交所有数据
+  // 触发条件：页面关闭/卸载时
+  // 冷却周期：仅会话结束时触发一次
+  // 提交策略：完整数据提交
+  _initSessionEndHandler() {
+      window.addEventListener('beforeunload', () => {
+          this._submitAllData();
+      });
+  }
+
+  _submitAllData() {
+      if (this.significantEdits.length > 0) {
+          this.logEvent('coding_session_summary', {
+              total_edits: this.significantEdits.length,
+              problem_events: this.problemEvents.length,
+              significant_edits: this.significantEdits,
+              timestamp: new Date().toISOString()
+          });
+      }
+  }
+  /**
+   * 记录有意义的编辑
+   */
+  // 触发条件：单次增加操作 ≥10字符 + 超时3秒
+  _recordMeaningfulEdit(editorType, editType, changeAmount, currentLength, timestamp) {
+    const editRecord = {
+      type: editType,
+      editor: editorType,
+      timestamp: timestamp,
+      changeAmount: changeAmount,// 本次修改的字符数
+      currentLength: currentLength//  修改后的代码长度
+    };
+    
+    this.significantEdits.push(editRecord);
+
+    // 添加分级实时上传逻辑
+    if (changeAmount >= 50) {  // 大段代码增加
+        this.logEvent('large_addition', editRecord);  // 实时上传大段增加
+    } else if (this.significantEdits.length % 5 === 0) {  // 每5个批量上传
+        this._submitSignificantEdits();
+    }
+    
+    // 保持记录数量
+    if (this.significantEdits.length > this.codeMonitoringConfig.maxHistoryLength) {
+      this.significantEdits.shift();
+    }
+    
+    console.log(`[${editorType}] 有意义编辑: ${changeAmount}字符`);
+  }
+
+  /**
+   * 记录问题事件
+   */
+  _recordProblemEvent(editorType, consecutiveEdits, timestamp) {
+      const problemEvent = {
+          editor: editorType,
+          timestamp: timestamp,
+          consecutiveEdits: consecutiveEdits,
+          severity: this._calculateProblemSeverity(consecutiveEdits)
+      };
+      
+      this.problemEvents.push(problemEvent);
+      
+      // 触发问题提示
+      if (consecutiveEdits >= this.hintConfig.hintThreshold) {
+          this._triggerProblemHint(editorType, consecutiveEdits, timestamp);
+      }
+      // 立即提交问题事件
+      this._submitProblemEvent(problemEvent);
+  }
+  // 新增问题提示触发方法
+  _triggerProblemHint(editorType, editCount, timestamp) {
+      // 检查冷却时间
+      const now = Date.now();
+      if (now - this.hintConfig.lastHintTime < this.hintConfig.cooldownPeriod) {
+          return; // 还在冷却中，不触发提示
+      }
+      
+      // 更新最后提示时间
+      this.hintConfig.lastHintTime = now;
+      
+      // 触发自定义事件
+      const eventDetail = {
+          editor: editorType,
+          editCount: editCount,
+          timestamp: timestamp,
+          message: this._generateHintMessage(editorType, editCount)
+      };
+      
+      const event = new CustomEvent('problemHintNeeded', {
+          detail: eventDetail
+      });
+      document.dispatchEvent(event);
+      
+      console.log(`触发问题提示: ${editorType} 编辑器, ${editCount} 次修改`);
+  }
+  // 生成提示消息
+  
+  _generateHintMessage(editorType, editCount) {
+      const editorNames = {
+          html: 'HTML',
+          css: 'CSS', 
+          js: 'JavaScript'
+      };
+      
+      const messages = [
+          `我注意到您在${editorNames[editorType]}代码中反复修改了${editCount}次，需要帮助吗？`,
+          `检测到${editorNames[editorType]}代码有${editCount}处反复修改，是否需要协助解决？`,
+          `看起来您在${editorNames[editorType]}部分遇到了些困难，需要我提供建议吗？`,
+          `您在${editorNames[editorType]}编辑器中多次调整代码，有什么我可以帮忙的吗？`
+      ];
+      
+      return messages[Math.floor(Math.random() * messages.length)];
+  }
+  // 专门的问题事件提交方法
+  // 触发条件：连续编辑 ≥3次
+  // 冷却周期：无冷却，实时触发
+  // 提交策略：立即提交
+  _submitProblemEvent(problemEvent) {
+      this.logEvent('coding_problem', {
+          editor: problemEvent.editor,
+          consecutive_edits: problemEvent.consecutiveEdits,
+          severity: problemEvent.severity,// 区分严重程度
+          timestamp: new Date(problemEvent.timestamp).toISOString()
+      });
+      
+      console.warn(`实时提交问题事件: ${problemEvent.editor} 编辑器, ${problemEvent.consecutiveEdits} 次连续编辑`);
+  }
+
+  /**
+   * 计算问题严重程度
+   */
+  _calculateProblemSeverity(consecutiveEdits) {//问题严重程度：低(3-4次)、中(5-7次)、高(≥8次)三个等级
+    if (consecutiveEdits >= 10) return 'high';
+    if (consecutiveEdits >= 5) return 'medium';
+    return 'low';
+  }
+
+  /**
+   * 输出重要编辑日志
+   */
+  // 触发条件：完成"删除→重新编写"完整周期 + 净变化≥10字符
+  _logSignificantEdit(editRecord) {
+    const time = new Date(editRecord.timestamp).toLocaleTimeString();
+    const changeType = editRecord.netChange >= 0 ? '增加' : '减少';
+    
+    console.log(
+      `%c重要编辑%c [${time}] %c${editRecord.editor.toUpperCase()}%c: ${changeType} ${Math.abs(editRecord.netChange)}字符, 历时 ${editRecord.duration}ms, 连续 ${editRecord.consecutiveEdits}次编辑`,
+      'background: #4dabf7; color: white; padding: 2px 4px; border-radius: 3px;',
+      'color: #666;',
+      'color: #339af0; font-weight: bold;',
+      'color: default;'
+    );// 只是日志输出，不上传
+  }
+
+  /**
+   * 获取代码行为分析
+   */
+  getCodingBehaviorAnalysis() {
+    const now = Date.now();
+    const sessionDuration = Math.round((now - (this.significantEdits[0]?.timestamp || now)) / 1000);
+    
+    // 计算各种统计数据
+    const totalSignificantEdits = this.significantEdits.length;
+    const problemEventsCount = this.problemEvents.length;
+    
+    const editsByType = this.significantEdits.reduce((acc, edit) => {
+      acc[edit.type] = (acc[edit.type] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const editsByEditor = this.significantEdits.reduce((acc, edit) => {
+      acc[edit.editor] = (acc[edit.editor] || 0) + 1;
+      return acc;
+    }, {});
+    
+    // 计算平均编辑规模
+    const editCycles = this.significantEdits.filter(e => e.type === 'edit_cycle');
+    const avgEditSize = editCycles.length > 0 ? 
+      Math.round(editCycles.reduce((sum, e) => sum + Math.abs(e.netChange), 0) / editCycles.length) : 0;
+    
+    return {
+      sessionDuration,//  会话持续时间
+      totalSignificantEdits,//  重要编辑总数
+      problemEventsCount,//  问题事件总数
+      editsByType,  //  按编辑类型分类的编辑数
+      editsByEditor,//  按编辑器分类的编辑数
+      avgEditSize,//  平均编辑规模（字符数）
+      recentProblems: this.problemEvents.slice(-5),// 最近5个问题事件
+      recentEdits: this.significantEdits.slice(-10)// 最近10个重要编辑
+    };
+  }
+
+  /**
+   * 重置监控状态
+   */
+  resetCodeMonitoring() {
+    this.codeMonitorStates = {
+      html: this._createEditorState(),
+      css: this._createEditorState(),
+      js: this._createEditorState()
+    };
+    this.problemEvents = [];
+    this.significantEdits = [];
+    console.log('[BehaviorTracker] 代码监控状态已重置');
   }
 
   // -------------------- 核心发送函数 --------------------
@@ -90,182 +493,6 @@ class BehaviorTracker {
     };
 
     this._sendPayload(payload);
-  }
-  // -------------------- 代码改动监控功能 --------------------
-  /**
-   * 初始化代码改动监控
-   * @param {Object} editors - 编辑器实例对象 { html: editor, css: editor, js: editor }
-   */
-  initCodeChangeTracking(editors) {
-    if (!editors) {
-      console.warn('[BehaviorTracker] 无编辑器实例，无法初始化代码改动监控');
-      return;
-    }
-
-    try {
-      // 为每个编辑器设置内容变化监听
-      if (editors.html && typeof editors.html.onDidChangeModelContent === 'function') {
-        editors.html.onDidChangeModelContent(() => {
-          this._recordCodeChange('html', editors.html.getValue());
-        });
-      }
-      if (editors.css && typeof editors.css.onDidChangeModelContent === 'function') {
-        editors.css.onDidChangeModelContent(() => {
-          this._recordCodeChange('css', editors.css.getValue());
-        });
-      }
-      if (editors.js && typeof editors.js.onDidChangeModelContent === 'function') {
-        editors.js.onDidChangeModelContent(() => {
-          this._recordCodeChange('js', editors.js.getValue());
-        });
-      }
-
-      console.log('[BehaviorTracker] 代码改动监控已初始化');
-      
-      // 启动定期报告
-      this._startPeriodicReporting();
-      
-    } catch (e) {
-      console.warn('[BehaviorTracker] 初始化代码改动监控时出错：', e);
-    }
-  }
-
-  /**
-   * 记录代码改动
-   * @param {string} editorType - 编辑器类型 ('html', 'css', 'js')
-   * @param {string} content - 编辑器内容
-   */
-  _recordCodeChange(editorType, content) {
-    const now = Date.now();
-    const timeSinceLastChange = now - this.lastChangeTime;
-    this.lastChangeTime = now;
-
-    // 计算代码指标
-    const lines = content.split('\n').length;
-    const length = content.length;
-
-    // 创建改动记录
-    const changeRecord = {
-      timestamp: now,
-      editor: editorType,
-      codeLength: length,
-      lineCount: lines,
-      timeSinceLastChange: timeSinceLastChange
-    };
-
-    // 添加到历史
-    this.codeChangeHistory.push(changeRecord);
-
-    // 更新统计
-    this.codeStats.totalChanges++;
-    this.codeStats[`${editorType}Changes`]++;
-
-    // 输出到控制台
-    this._logCodeChangeToConsole(changeRecord);
-
-    // 同时发送标准 code_edit 事件（防抖的）
-    this._debouncedCodeEdit(editorType, content);
-  }
-
-  // 防抖的 code_edit 事件上报
-  _debouncedCodeEdit = debounce((editorType, content) => {
-    this.logEvent('code_edit', {
-      editorName: editorType,
-      newLength: content ? content.length : 0,
-      lineCount: content.split('\n').length
-    });
-  }, this.debounceMs);
-
-  // 输出代码改动的控制台日志
-  _logCodeChangeToConsole(changeRecord) {
-    const time = new Date(changeRecord.timestamp).toLocaleTimeString();
-    console.log(
-      `%c代码改动监控%c [${time}] %c${changeRecord.editor.toUpperCase()}%c: ${changeRecord.codeLength}字符, ${changeRecord.lineCount}行, 间隔: ${changeRecord.timeSinceLastChange}ms`,
-      'background: #4dabf7; color: white; padding: 2px 4px; border-radius: 3px;',
-      'color: #666;',
-      'color: #339af0; font-weight: bold;',
-      'color: default;'
-    );
-  }
-
-  // 启动定期报告
-  _startPeriodicReporting() {
-    // 每30秒报告一次
-    setInterval(() => this._reportCodeChangeSummary(), 30000);
-  }
-
-  // 报告代码改动摘要
-  _reportCodeChangeSummary() {
-    if (this.codeChangeHistory.length === 0) return;
-
-    const sessionDuration = Math.round((Date.now() - this.codeStats.startTime) / 1000);
-    const changesPerMinute = Math.round((this.codeStats.totalChanges / sessionDuration) * 60);
-
-    console.groupCollapsed(`%c代码改动摘要 - ${new Date().toLocaleTimeString()}`, 'font-weight: bold; color: #1864ab;');
-    console.log(`会话时长: ${sessionDuration}秒`);
-    console.log(`总改动次数: ${this.codeStats.totalChanges}`);
-    console.log(`每分钟改动: ${changesPerMinute}次`);
-    console.log(`HTML改动: ${this.codeStats.htmlChanges}`);
-    console.log(`CSS改动: ${this.codeStats.cssChanges}`);
-    console.log(`JS改动: ${this.codeStats.jsChanges}`);
-    
-    // 计算平均编辑间隔
-    if (this.codeChangeHistory.length > 1) {
-      const intervals = this.codeChangeHistory
-        .filter((_, i) => i > 0)
-        .map(record => record.timeSinceLastChange);
-      
-      const avgInterval = Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length);
-      console.log(`平均编辑间隔: ${avgInterval}ms`);
-    }
-    
-    console.groupEnd();
-  }
-
-  /**
-   * 获取代码改动分析数据
-   * @returns {Object} 代码改动统计数据
-   */
-  getCodeChangeAnalysis() {
-    const sessionDuration = Math.round((Date.now() - this.codeStats.startTime) / 1000);
-    const changesPerMinute = this.codeStats.totalChanges > 0 ? 
-      Math.round((this.codeStats.totalChanges / sessionDuration) * 60) : 0;
-
-    // 计算平均编辑间隔
-    let avgInterval = 0;
-    if (this.codeChangeHistory.length > 1) {
-      const intervals = this.codeChangeHistory
-        .filter((_, i) => i > 0)
-        .map(record => record.timeSinceLastChange);
-      
-      avgInterval = Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length);
-    }
-
-    return {
-      sessionDuration,
-      totalChanges: this.codeStats.totalChanges,
-      changesPerMinute,
-      htmlChanges: this.codeStats.htmlChanges,
-      cssChanges: this.codeStats.cssChanges,
-      jsChanges: this.codeStats.jsChanges,
-      avgInterval,
-      changeHistory: this.codeChangeHistory
-    };
-  }
-
-  /**
-   * 清空代码改动历史（可用于重置或开始新的会话）
-   */
-  clearCodeChangeHistory() {
-    this.codeChangeHistory = [];
-    this.codeStats = {
-      totalChanges: 0,
-      htmlChanges: 0,
-      cssChanges: 0,
-      jsChanges: 0,
-      startTime: Date.now()
-    };
-    console.log('[BehaviorTracker] 代码改动历史已清空');
   }
 
   // -------------------- 编辑器（Monaco）相关 --------------------
