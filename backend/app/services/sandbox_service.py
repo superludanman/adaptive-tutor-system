@@ -177,10 +177,10 @@ class SandboxService:
             return True, "通过"
             
         assertion_type = assertion.type
-        selector = assertion.selector
 
         try:
             if assertion_type == "assert_style":
+                selector = assertion.selector
                 css_property = assertion.css_property
                 assertion_op = assertion.assertion_type
                 expected_value = assertion.value
@@ -199,6 +199,7 @@ class SandboxService:
                     return False, f"元素 {selector} 的CSS属性 {css_property} 值为 '{actual_value}'，不满足 '{assertion_op} {expected_value}' 的条件"
 
             elif assertion_type == "assert_text_content":
+                selector = assertion.selector
                 locator = page.locator(selector)
                 assertion_op = assertion.assertion_type
                 expected_value = assertion.value
@@ -223,6 +224,7 @@ class SandboxService:
                     return False, f"不支持的文本断言类型: '{assertion_op}'"
 
             elif assertion_type == "assert_attribute":
+                selector = assertion.selector
                 attribute = assertion.attribute
                 assertion_op = assertion.assertion_type
                 expected_value = assertion.value
@@ -296,6 +298,7 @@ class SandboxService:
                             return False, f"正则表达式 '{expected_value}' 错误: {e}"
 
             elif assertion_type == "assert_element":
+                selector = assertion.selector
                 assertion_op = assertion.assertion_type
                 expected_value = assertion.value
                 
@@ -331,6 +334,9 @@ class SandboxService:
             elif assertion_type == "custom_script":
                 script = assertion.script
                 try:
+                    if not (script.startswith("(()") and script.endswith(")()")):
+                        # 用IIFE包装
+                        script = f"(() => {{ {script} }})()"
                     # 执行自定义脚本
                     result = page.evaluate(script)
                     

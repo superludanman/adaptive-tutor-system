@@ -1,9 +1,9 @@
 {
-  "topic_id":"4_3",
-  "title": "使用 Flex 布局实现页面元素排列",
-  "description_md": "使用 Flexbox 布局优化页面结构。\n\n- 请为 `header` 设置 `display: flex`，并使用 `justify-content: space-between` 让标题与按钮分列左右\n- 为 `.card-container` 添加 Flex 布局，使其中卡片横向排列、居中显示、自动换行、卡片之间有 `gap: 1rem`",
+  "topic_id": "4_3",
+  "title": "使用 Flex 布局构建响应式导航栏",
+  "description_md": "使用 Flexbox 布局创建一个响应式导航栏。\n\n- 请为 `header` 设置 `display: flex`，并使用 `justify-content: space-between` 让标题与导航链接分列左右\n- 为 `.nav-links` 添加 Flex 布局，使其中链接横向排列、居中显示、自动换行、链接之间有 `gap: 1.5rem`",
   "start_code": {
-    "html": "<!DOCTYPE html>\n<html lang=\"zh\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <title>猫咪展示 Demo</title>\n  <style>\n    body {\n      margin: 0;\n      font-family: 'Arial', sans-serif;\n      background: linear-gradient(to bottom, #006400, #00aa00);\n      color: #fff;\n    }\n    .card {\n      border-radius: 10px;\n      box-shadow: 0 0 10px rgba(0,0,0,0.2);\n    }\n    .card-content {\n      padding: 1rem;\n    }\n  </style>\n</head>\n<body>\n  <header>\n    <h1 style=\"font-weight: bold; font-style: italic;\">WCF 猫咪展示 2025</h1>\n    <nav>\n      <button style=\"font-weight: bold; font-style: italic;\">猫咪排行</button>\n      <button style=\"font-weight: bold; font-style: italic;\">查找猫咪</button>\n      <button style=\"font-weight: bold; font-style: italic;\">展会日历</button>\n    </nav>\n  </header>\n  <section class=\"features\">\n    <div class=\"search-bar\">\n      <input type=\"text\" placeholder=\"搜索猫咪名称\" id=\"searchInput\">\n      <select>\n        <option>选择品种</option>\n        <option>英短</option>\n        <option>美短</option>\n        <option>加菲</option>\n      </select>\n      <button>搜索</button>\n    </div>\n    <div class=\"card-container\">\n      <div class=\"card\">\n        <img src=\"\" alt=\"猫咪图片\">\n        <div class=\"card-content\">\n          <h3>黑豆</h3>\n          <p>品种：英短</p>\n          <p>得分：12345</p>\n        </div>\n      </div>\n      <div class=\"card\">\n        <img src=\"\" alt=\"猫咪图片\">\n        <div class=\"card-content\">\n          <h3>雪球</h3>\n          <p>品种：加菲</p>\n          <p>得分：11200</p>\n        </div>\n      </div>\n    </div>\n    <div class=\"list-demo\">\n      <h3>猫咪照顾要点</h3>\n      <ol>\n        <li>每日梳毛</li>\n        <li>定时喂食</li>\n        <li>清洁猫砂盆</li>\n      </ol>\n      <h3>猫咪喜欢的活动</h3>\n      <ul>\n        <li>抓老鼠</li>\n        <li>晒太阳</li>\n        <li>玩毛线球</li>\n      </ul>\n    </div>\n    <div class=\"form-demo\">\n      <h3>猫咪偏好调查</h3>\n      <form onsubmit=\"handleForm(event)\">\n        <label><input type=\"checkbox\" name=\"likes\" value=\"晒太阳\"> 喜欢晒太阳</label>\n        <label><input type=\"checkbox\" name=\"likes\" value=\"抓老鼠\"> 爱抓老鼠</label>\n        <label>性别偏好：</label>\n        <label><input type=\"radio\" name=\"gender\" value=\"公\"> 公猫</label>\n        <label><input type=\"radio\" name=\"gender\" value=\"母\"> 母猫</label>\n        <button type=\"submit\">提交</button>\n      </form>\n    </div>\n  </section>\n  <footer>\n    <p>© 2025 猫咪前端示例页面 - 教学用途</p>\n  </footer>\n</body>\n</html>",
+    "html": "<!DOCTYPE html>\n<html lang=\"zh\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <title>编程学习教程</title>\n  <style>\n    body {\n      margin: 0;\n      font-family: 'Arial', sans-serif;\n      background: linear-gradient(to right, #4b6cb7, #182848);\n      color: #fff;\n    }\n    .nav-link {\n      text-decoration: none;\n      color: white;\n      padding: 0.5rem 1rem;\n      border-radius: 5px;\n      background-color: rgba(255, 255, 255, 0.1);\n    }\n  </style>\n</head>\n<body>\n  <header>\n    <h2 style=\"font-weight: bold;\">编程学习教程</h2>\n    <nav class=\"nav-links\">\n      <a href=\"#\" class=\"nav-link\">首页</a>\n      <a href=\"#\" class=\"nav-link\">课程</a>\n      <a href=\"#\" class=\"nav-link\">资源</a>\n      <a href=\"#\" class=\"nav-link\">联系</a>\n    </nav>\n  </header>\n  <section class=\"content\">\n    <p>欢迎来到编程学习教程网站，这里有丰富的编程资源供你学习。</p>\n  </section>\n  <footer>\n    <p>© 2025 编程学习教程 - 教学用途</p>\n  </footer>\n</body>\n</html>",
     "css": "",
     "js": ""
   },
@@ -27,40 +27,45 @@
       "feedback": "请设置 header 的 justify-content 为 space-between。"
     },
     {
-      "name": "卡片容器使用 Flex 布局",
+      "name": "导航链接容器使用 Flex 布局",
       "type": "assert_style",
-      "selector": ".card-container",
+      "selector": ".nav-links",
       "css_property": "display",
       "assertion_type": "equals",
       "value": "flex",
-      "feedback": "请将 .card-container 设置为 flex 布局。"
+      "feedback": "请将 .nav-links 设置为 flex 布局。"
     },
     {
-      "name": "卡片容器允许换行",
+      "name": "导航链接容器允许换行",
       "type": "assert_style",
-      "selector": ".card-container",
+      "selector": ".nav-links",
       "css_property": "flex-wrap",
       "assertion_type": "equals",
       "value": "wrap",
-      "feedback": "请确保 .card-container 设置了 flex-wrap: wrap。"
+      "feedback": "请确保 .nav-links 设置了 flex-wrap: wrap。"
     },
     {
-      "name": "卡片容器居中对齐",
+      "name": "导航链接容器居中对齐",
       "type": "assert_style",
-      "selector": ".card-container",
+      "selector": ".nav-links",
       "css_property": "justify-content",
       "assertion_type": "equals",
       "value": "center",
-      "feedback": "请设置 .card-container 的 justify-content 为 center。"
+      "feedback": "请设置 .nav-links 的 justify-content 为 center。"
     },
     {
-      "name": "卡片间距设置",
+      "name": "导航链接间距设置",
       "type": "assert_style",
-      "selector": ".card-container",
+      "selector": ".nav-links",
       "css_property": "gap",
       "assertion_type": "equals",
-      "value": "1rem",
-      "feedback": "请为 .card-container 设置 gap 为 1rem。"
+      "value": "1.5rem",
+      "feedback": "请为 .nav-links 设置 gap 为 1.5rem。"
     }
-  ]
+  ],
+  "answer": {
+    "html": "<!DOCTYPE html>\n<html lang=\"zh\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <title>编程学习教程</title>\n  <style>\n    body {\n      margin: 0;\n      font-family: 'Arial', sans-serif;\n      background: linear-gradient(to right, #4b6cb7, #182848);\n      color: #fff;\n    }\n    header {\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n      padding: 1rem;\n    }\n    .nav-links {\n      display: flex;\n      flex-wrap: wrap;\n      justify-content: center;\n      gap: 1.5rem;\n    }\n    .nav-link {\n      text-decoration: none;\n      color: white;\n      padding: 0.5rem 1rem;\n      border-radius: 5px;\n      background-color: rgba(255, 255, 255, 0.1);\n    }\n  </style>\n</head>\n<body>\n  <header>\n    <h2 style=\"font-weight: bold;\">编程学习教程</h2>\n    <nav class=\"nav-links\">\n      <a href=\"#\" class=\"nav-link\">首页</a>\n      <a href=\"#\" class=\"nav-link\">课程</a>\n      <a href=\"#\" class=\"nav-link\">资源</a>\n      <a href=\"#\" class=\"nav-link\">联系</a>\n    </nav>\n  </header>\n  <section class=\"content\">\n    <p>欢迎来到编程学习教程网站，这里有丰富的编程资源供你学习。</p>\n  </section>\n  <footer>\n    <p>© 2025 编程学习教程 - 教学用途</p>\n  </footer>\n</body>\n</html>",
+    "css": "",
+    "js": ""
+  }
 }

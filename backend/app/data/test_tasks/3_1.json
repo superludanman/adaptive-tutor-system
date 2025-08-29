@@ -1,7 +1,7 @@
 {
-  "topic_id":"3.1",
-  "title": "文本框与按钮的使用",
-  "description_md": "# 文本框与按钮的使用\n##任务一：请创建一个文本框，提示文本是：搜索猫咪名称。\n##任务二：\n在文本框下方创建一个按钮，按钮的文本是：搜索。",
+  "topic_id": "3_1",
+  "title": "创建登录表单的文本框与按钮",
+  "description_md": "# 创建登录表单的文本框与按钮\n## 任务一：\n请创建一个文本框，提示文本是：请输入用户名。\n## 任务二：\n在文本框下方创建一个按钮，按钮的文本是：登录。",
   "start_code": {
     "html": "",
     "css": "",
@@ -10,54 +10,54 @@
   "checkpoints": [
     {
       "name": "input表单元素检查",
-      "type": "assert_attribute",
+      "type": "assert_element",
       "selector": "input",
-      "attribute": "",
       "assertion_type": "exists",
-      "value": "",
       "feedback": "请检查input元素是否存在。"
     },
     {
-        "name" : "input表单元素类型检查",
-        "type" : "assert_attribute",
-        "selector" : "input",
-        "attribute" : "type",
-        "assertion_type" : "matches",
-        "value" : "text",
-        "feedback" : "请检查input元素type属性为text."
+      "name": "input表单元素类型检查",
+      "type": "assert_attribute",
+      "selector": "input",
+      "attribute": "type",
+      "assertion_type": "equals",
+      "value": "text",
+      "feedback": "请检查input元素type属性是否为text。"
     },
     {
       "name": "input表单提示文本检查",
       "type": "assert_attribute",
       "selector": "input",
       "attribute": "placeholder",
-      "assertion_type": "matches",
-      "value": "搜索猫咪名称",
-      "feedback": "请检查input元素的placeholder属性是否与要求不同。"
+      "assertion_type": "equals",
+      "value": "请输入用户名",
+      "feedback": "请检查input元素的placeholder属性是否正确。"
     },
     {
       "name": "button按钮元素检查",
       "type": "assert_element",
       "selector": "button",
       "assertion_type": "exists",
-      "value": "搜索",
       "feedback": "请检查button元素是否存在。"
     },
     {
-      "name": "button按钮元素位置检查",
-      "type": "custom_script",
-      "script": "return document.querySelector('input').getBoundingClientRect().top < document.querySelector('button).getBoundingClientRect().top",
-      "feedback": "button元素应该在input元素下方。"
+      "name": "button按钮文本检查",
+      "type": "assert_text_content",
+      "selector": "button",
+      "assertion_type": "equals",
+      "value": "登录",
+      "feedback": "请检查button按钮的文本内容是否为登录。"
     },
     {
-      "name": "button按钮文本检查",
-      "type": "assert_attribute",
-      "selector": "button",
-      "attribute": "textContent",
-      "assertion_type": "matches",
-      "value": "搜索",
-      "feedback": "请检查button按钮文本是否为搜索。"
+      "name": "button按钮位置检查",
+      "type": "custom_script",
+      "script": "const inputTop = document.querySelector('input').getBoundingClientRect().top; const buttonTop = document.querySelector('button').getBoundingClientRect().top; return inputTop < buttonTop;",
+      "feedback": "请确保button元素位于input元素下方。"
     }
-  ]
+  ],
+  "answer": {
+    "html": "<input type=\"text\" placeholder=\"请输入用户名\">\n<button>登录</button>",
+    "css": "",
+    "js": ""
+  }
 }
-

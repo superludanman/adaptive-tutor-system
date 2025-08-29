@@ -1,7 +1,7 @@
 {
-  "topic_id":"1_1",
+  "topic_id": "1_1",
   "title": "使用h元素和p元素体验标题与段落",
-  "description_md": "# 任务描述：\n## 任务一：\n请使用h1元素创建一个标题，内容为“WCF 猫咪展示 2025”。\n## 任务二：\n请在h1元素下方使用h3元素创建一个副标题，内容为“猫咪偏好调查”。\n## 任务三：\n请在h3元素下方使用p元素创建一个段落，内容为“© 2025 猫咪前端示例页面 - 教学用途”。",
+  "description_md": "# 任务描述：\n## 任务一：\n请使用h2元素创建一个主标题，内容为“前端开发入门指南”。\n## 任务二：\n请在主标题下方使用h4元素创建一个副标题，内容为“HTML基础结构”。\n## 任务三：\n请在副标题下方使用p元素创建一个段落，内容为“本文将介绍如何使用HTML构建网页的基本结构。”",
   "start_code": {
     "html": "",
     "css": "",
@@ -9,40 +9,40 @@
   },
   "checkpoints": [
     {
-      "name": "h1元素存在检查",
+      "name": "h2元素存在检查",
       "type": "assert_element",
-      "selector": "h1",
+      "selector": "h2",
       "assertion_type": "exists",
-      "feedback": "请在代码中添加一个h1元素。"
+      "feedback": "请在代码中添加一个h2元素。"
     },
     {
-      "name": "h1元素内容检查",
+      "name": "h2元素内容检查",
       "type": "assert_text_content",
-      "selector": "h1",
+      "selector": "h2",
       "assertion_type": "equals",
-      "value": "WCF 猫咪展示 2025",
-      "feedback": "h1元素的内容应该为'WCF 猫咪展示 2025'。"
+      "value": "前端开发入门指南",
+      "feedback": "h2元素的内容应该为'前端开发入门指南'。"
     },
     {
-      "name": "h3元素存在检查",
+      "name": "h4元素存在检查",
       "type": "assert_element",
-      "selector": "h3",
+      "selector": "h4",
       "assertion_type": "exists",
-      "feedback": "请在代码中添加一个h3元素。"
+      "feedback": "请在代码中添加一个h4元素。"
     },
     {
-      "name": "h3元素位置检查",
+      "name": "h4元素位置检查",
       "type": "custom_script",
-      "script": "const h1 = document.querySelector('h1'); const h3 = document.querySelector('h3'); if (!h1 || !h3) { return false; } const elements = Array.from(document.body.children); const h1Index = elements.indexOf(h1); const h3Index = elements.indexOf(h3); return h1Index !== -1 && h3Index > h1Index;",
-      "feedback": "h3元素应该在h1元素的下边。"
+      "script": "const h2 = document.querySelector('h2'); const h4 = document.querySelector('h4'); if (!h2 || !h4) { return false; } const elements = Array.from(document.body.children); const h2Index = elements.indexOf(h2); const h4Index = elements.indexOf(h4); return h2Index !== -1 && h4Index > h2Index;",
+      "feedback": "h4元素应该在h2元素的下边。"
     },
     {
-      "name": "h3元素内容检查",
+      "name": "h4元素内容检查",
       "type": "assert_text_content",
-      "selector": "h3",
+      "selector": "h4",
       "assertion_type": "equals",
-      "value": "猫咪偏好调查",
-      "feedback": "h3元素的内容应该为'猫咪偏好调查'。"
+      "value": "HTML基础结构",
+      "feedback": "h4元素的内容应该为'HTML基础结构'。"
     },
     {
       "name": "p元素存在检查",
@@ -54,16 +54,21 @@
     {
       "name": "p元素位置检查",
       "type": "custom_script",
-      "script": "const h3 = document.querySelector('h3'); const p = document.querySelector('p'); if (!h3 || !p) { return false; } const elements = Array.from(document.body.children); const h3Index = elements.indexOf(h3); const pIndex = elements.indexOf(p); return h3Index !== -1 && pIndex > h3Index;",
-      "feedback": "p元素应该在h3元素的下边。"
+      "script": "const h4 = document.querySelector('h4'); const p = document.querySelector('p'); if (!h4 || !p) { return false; } const elements = Array.from(document.body.children); const h4Index = elements.indexOf(h4); const pIndex = elements.indexOf(p); return h4Index !== -1 && pIndex > h4Index;",
+      "feedback": "p元素应该在h4元素的下边。"
     },
     {
       "name": "p元素内容检查",
       "type": "assert_text_content",
       "selector": "p",
       "assertion_type": "equals",
-      "value": "© 2025 猫咪前端示例页面 - 教学用途",
-      "feedback": "p元素的内容应该为'© 2025 猫咪前端示例页面 - 教学用途'。"
+      "value": "本文将介绍如何使用HTML构建网页的基本结构。",
+      "feedback": "p元素的内容应该为'本文将介绍如何使用HTML构建网页的基本结构。'"
     }
-  ]
+  ],
+  "answer": {
+    "html": "<h2>前端开发入门指南</h2>\n<h4>HTML基础结构</h4>\n<p>本文将介绍如何使用HTML构建网页的基本结构。</p>",
+    "css": "",
+    "js": ""
+  }
 }

@@ -1,31 +1,42 @@
 {
-  "topic_id":"1_2",
+  "topic_id": "1_2",
   "title": "应用文本格式（加粗、斜体）",
-  "description_md": "# 任务描述：\n请使用css样式中的font-weight属性和font-style属性，分别将下面的h1元素变成粗体和斜体。",
+  "description_md": "# 任务描述：\n请使用CSS样式中的`font-weight`属性和`font-style`属性，分别将下面的`h2`元素设置为粗体和斜体样式。\n\n## 要求：\n1. 使用`font-weight`使标题文字加粗\n2. 使用`font-style`使标题文字变为斜体\n3. 不要修改HTML结构",
   "start_code": {
-    "html": "<h1>WCF 猫咪展示 2025</h1>",
+    "html": "<h2>Web开发基础教程</h2>",
     "css": "",
     "js": ""
   },
   "checkpoints": [
     {
+      "name": "h2元素存在检查",
+      "type": "assert_element",
+      "selector": "h2",
+      "assertion_type": "exists",
+      "feedback": "请确保页面中包含一个h2元素。"
+    },
+    {
       "name": "font-weight属性检查",
       "type": "assert_style",
-      "selector": "h1",
+      "selector": "h2",
       "css_property": "font-weight",
       "assertion_type": "equals",
       "value": "bold",
-      "feedback": "粗体应该使用font-weight:bold来实现。"
+      "feedback": "请使用font-weight:bold来设置粗体样式。"
     },
     {
       "name": "font-style属性检查",
       "type": "assert_style",
-      "selector": "h1",
+      "selector": "h2",
       "css_property": "font-style",
       "assertion_type": "equals",
       "value": "italic",
-      "feedback": "斜体应该使用font-style:italic来实现。"
+      "feedback": "请使用font-style:italic来设置斜体样式。"
     }
-  ]
+  ],
+  "answer": {
+    "html": "<h2>Web开发基础教程</h2>",
+    "css": "h2 {\n  font-weight: bold;\n  font-style: italic;\n}",
+    "js": ""
+  }
 }
-

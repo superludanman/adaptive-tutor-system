@@ -1,27 +1,19 @@
 {
-  "topic_id":"2_1",
+  "topic_id": "2_1",
   "title": "使用盒子元素进行内容划分",
-  "description_md": "# 任务描述：\n使用div标签将以下文本内容包裹起来，并定义id属性为first-section",
+  "description_md": "# 任务描述：\n请使用 `div` 标签将以下内容包裹起来，并为该 `div` 元素设置 `id` 属性值为 `main-content`，用于划分页面的主要内容区域。",
   "start_code": {
-    "html": "<h3>猫咪照顾要点</h3>\n<p>猫咪是非常可爱的宠物，它们需要定期的照顾和关爱。</p>\n<h3>猫咪喜欢的活动</h3>\n<p>猫咪喜欢抓老鼠、晒太阳和玩毛绒球。</p>",
+    "html": "<h3>学习HTML的重要性</h3>\n<p>掌握HTML是网页开发的基础，它帮助我们构建结构清晰的网页内容。</p>\n<h3>常见的HTML标签</h3>\n<p>常用的标签包括标题标签、段落标签和列表标签等。</p>",
     "css": "",
     "js": ""
   },
   "checkpoints": [
     {
       "name": "div元素存在检查",
-      "type": "assert_attribute",
+      "type": "assert_element",
       "selector": "div",
-      "attribute": "",
       "assertion_type": "exists",
-      "value": "",
       "feedback": "请在代码中添加一个div元素。"
-    },
-    {
-      "name": "div元素位置检查",
-      "type": "custom_script",
-      "script": "return document.querySelector('div').getBoundingClientRect().top < document.querySelector('h3').getBoundingClientRect().top",
-      "feedback": "div元素应该在h3元素的上方。"
     },
     {
       "name": "div元素id属性检查",
@@ -29,9 +21,19 @@
       "selector": "div",
       "attribute": "id",
       "assertion_type": "equals",
-      "value": "first-section",
-      "feedback": "div元素的id属性应该设置为'first-section'。"
+      "value": "main-content",
+      "feedback": "div元素的id属性应该设置为'main-content'。"
+    },
+    {
+      "name": "div元素包含内容检查",
+      "type": "custom_script",
+      "script": "const div = document.querySelector('div'); return div && div.children.length >= 4;",
+      "feedback": "div元素应该包含所有的h3和p元素。"
     }
-  ]
+  ],
+  "answer": {
+    "html": "<div id=\"main-content\">\n  <h3>学习HTML的重要性</h3>\n  <p>掌握HTML是网页开发的基础，它帮助我们构建结构清晰的网页内容。</p>\n  <h3>常见的HTML标签</h3>\n  <p>常用的标签包括标题标签、段落标签和列表标签等。</p>\n</div>",
+    "css": "",
+    "js": ""
+  }
 }
-

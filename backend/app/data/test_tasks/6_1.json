@@ -1,9 +1,9 @@
 {
   "topic_id": "6_1",
-  "title": "为按钮绑定点击事件",
-  "description_md": "为“搜索”按钮添加点击事件，当点击按钮时弹出搜索框中的猫咪名称。\n\n- 给按钮添加 `onclick` 属性或使用 JavaScript 添加点击事件监听器\n- 弹出提示框展示用户输入的猫咪名称",
+  "title": "为登录按钮添加点击事件",
+  "description_md": "为“登录”按钮添加点击事件，当用户点击按钮时获取用户名输入框的内容，并弹出欢迎信息。\n\n- 给按钮添加 `onclick` 属性或使用 JavaScript 添加点击事件监听器\n- 弹出提示框展示用户输入的用户名，例如“欢迎, 张三!”",
   "start_code": {
-    "html": "<!DOCTYPE html>\n<html lang=\"zh\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <title>猫咪展示 Demo</title>\n  <style>\n    body {\n      margin: 0;\n      font-family: 'Arial', sans-serif;\n      background: linear-gradient(to bottom, #006400, #00aa00);\n      color: #fff;\n    }\n    .card {\n      border-radius: 10px;\n      box-shadow: 0 0 10px rgba(0,0,0,0.2);\n      background-color: #004d00;\n      width: 200px;\n      overflow: hidden;\n    }\n    .card-content {\n      padding: 1rem;\n    }\n    .card-container {\n      display: flex;\n      flex-wrap: wrap;\n      justify-content: center;\n      gap: 1rem;\n    }\n    header {\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n      padding: 1rem 2rem;\n      background-color: #004d00;\n    }\n    header h1 {\n      margin: 0;\n      font-size: 1.8rem;\n      color: #adff2f;\n    }\n  </style>\n</head>\n<body>\n  <header>\n    <h1 style=\"font-weight: bold; font-style: italic;\">WCF 猫咪展示 2025</h1>\n    <nav>\n      <button style=\"font-weight: bold; font-style: italic;\">猫咪排行</button>\n      <button style=\"font-weight: bold; font-style: italic;\">查找猫咪</button>\n      <button style=\"font-weight: bold; font-style: italic;\">展会日历</button>\n    </nav>\n  </header>\n  <section class=\"features\">\n    <div class=\"search-bar\">\n      <input type=\"text\" placeholder=\"搜索猫咪名称\" id=\"searchInput\">\n      <select>\n        <option>选择品种</option>\n        <option>英短</option>\n        <option>美短</option>\n        <option>加菲</option>\n      </select>\n      <button id=\"searchBtn\">搜索</button>\n    </div>\n    <div class=\"card-container\">\n      <div class=\"card\">\n        <img src=\"\" alt=\"猫咪图片\">\n        <div class=\"card-content\">\n          <h3>黑豆</h3>\n          <p>品种：英短</p>\n          <p>得分：12345</p>\n        </div>\n      </div>\n      <div class=\"card\">\n        <img src=\"\" alt=\"猫咪图片\">\n        <div class=\"card-content\">\n          <h3>雪球</h3>\n          <p>品种：加菲</p>\n          <p>得分：11200</p>\n        </div>\n      </div>\n    </div>\n    <div class=\"list-demo\">\n      <h3>猫咪叫声示例</h3>\n      <audio controls>\n        <source src=\"cat-sound.mp3\" type=\"audio/mpeg\">\n        浏览器不支持音频播放。\n      </audio>\n      <h3>猫咪日常视频</h3>\n      <video controls width=\"100%\">\n        <source src=\"cat-video.mp4\" type=\"video/mp4\">\n        浏览器不支持视频播放。\n      </video>\n    </div>\n  </section>\n  <footer>\n    <p>© 2025 猫咪前端示例页面 - 教学用途</p>\n  </footer>\n  <script>\n    // 用户在此实现点击事件逻辑\n  </script>\n</body>\n</html>",
+    "html": "<!DOCTYPE html>\n<html lang=\"zh\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <title>用户登录 Demo</title>\n  <style>\n    body {\n      margin: 0;\n      font-family: 'Arial', sans-serif;\n      background: linear-gradient(to bottom, #006400, #00aa00);\n      color: #fff;\n    }\n    .card {\n      border-radius: 10px;\n      box-shadow: 0 0 10px rgba(0,0,0,0.2);\n      background-color: #004d00;\n      width: 200px;\n      overflow: hidden;\n    }\n    .card-content {\n      padding: 1rem;\n    }\n    .card-container {\n      display: flex;\n      flex-wrap: wrap;\n      justify-content: center;\n      gap: 1rem;\n    }\n    header {\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n      padding: 1rem 2rem;\n      background-color: #004d00;\n    }\n    header h1 {\n      margin: 0;\n      font-size: 1.8rem;\n      color: #adff2f;\n    }\n  </style>\n</head>\n<body>\n  <header>\n    <h1 style=\"font-weight: bold; font-style: italic;\">编程学习平台</h1>\n    <nav>\n      <button style=\"font-weight: bold; font-style: italic;\">课程列表</button>\n      <button style=\"font-weight: bold; font-style: italic;\">学习记录</button>\n      <button style=\"font-weight: bold; font-style: italic;\">个人中心</button>\n    </nav>\n  </header>\n  <section class=\"features\">\n    <div class=\"login-bar\">\n      <input type=\"text\" placeholder=\"请输入用户名\" id=\"usernameInput\">\n      <button id=\"loginBtn\">登录</button>\n    </div>\n    <div class=\"card-container\">\n      <div class=\"card\">\n        <img src=\"\" alt=\"课程图片\">\n        <div class=\"card-content\">\n          <h3>HTML基础</h3>\n          <p>讲师：李老师</p>\n          <p>评分：4.8</p>\n        </div>\n      </div>\n      <div class=\"card\">\n        <img src=\"\" alt=\"课程图片\">\n        <div class=\"card-content\">\n          <h3>CSS进阶</h3>\n          <p>讲师：王老师</p>\n          <p>评分：4.7</p>\n        </div>\n      </div>\n    </div>\n    <div class=\"list-demo\">\n      <h3>课程介绍视频</h3>\n      <video controls width=\"100%\">\n        <source src=\"course-video.mp4\" type=\"video/mp4\">\n        浏览器不支持视频播放。\n      </video>\n    </div>\n  </section>\n  <footer>\n    <p>© 2025 编程学习平台 - 教学用途</p>\n  </footer>\n  <script>\n    // 用户在此实现点击事件逻辑\n  </script>\n</body>\n</html>",
     "css": "",
     "js": ""
   },
@@ -12,14 +12,33 @@
       "name": "点击后弹出提示",
       "type": "interaction_and_assert",
       "feedback": "验证按钮点击事件是否触发弹窗",
-      "action_selector": "#searchBtn",
+      "action_selector": "#loginBtn",
       "action_type": "click",
       "assertion": {
         "type": "custom_script",
-        "name": "验证弹窗脚本", 
-        "feedback": "点击“搜索”按钮后，应该弹出用户输入的猫咪名称，例如“花花”。",
-        "script": "const input = document.getElementById('searchInput'); if (!input) return false; input.value = '花花'; document.getElementById('searchBtn').click(); return window.alert && window.alert.calledWith && window.alert.calledWith.includes('花花');"
+        "name": "验证弹窗脚本",
+        "feedback": "点击“登录”按钮后，应该弹出用户输入的用户名，例如“张三”。",
+        "script": "const input = document.getElementById('usernameInput'); if (!input) return false; input.value = '张三'; document.getElementById('loginBtn').click(); return window.alert && window.alert.calledWith && window.alert.calledWith.includes('张三');"
       }
+    },
+    {
+      "name": "按钮元素存在",
+      "type": "assert_element",
+      "selector": "#loginBtn",
+      "assertion_type": "exists",
+      "feedback": "请确保页面中存在一个ID为loginBtn的按钮。"
+    },
+    {
+      "name": "输入框元素存在",
+      "type": "assert_element",
+      "selector": "#usernameInput",
+      "assertion_type": "exists",
+      "feedback": "请确保页面中存在一个ID为usernameInput的输入框。"
     }
-  ]
+  ],
+  "answer": {
+    "html": "<!DOCTYPE html>\n<html lang=\"zh\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <title>用户登录 Demo</title>\n  <style>\n    body {\n      margin: 0;\n      font-family: 'Arial', sans-serif;\n      background: linear-gradient(to bottom, #006400, #00aa00);\n      color: #fff;\n    }\n    .card {\n      border-radius: 10px;\n      box-shadow: 0 0 10px rgba(0,0,0,0.2);\n      background-color: #004d00;\n      width: 200px;\n      overflow: hidden;\n    }\n    .card-content {\n      padding: 1rem;\n    }\n    .card-container {\n      display: flex;\n      flex-wrap: wrap;\n      justify-content: center;\n      gap: 1rem;\n    }\n    header {\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n      padding: 1rem 2rem;\n      background-color: #004d00;\n    }\n    header h1 {\n      margin: 0;\n      font-size: 1.8rem;\n      color: #adff2f;\n    }\n  </style>\n</head>\n<body>\n  <header>\n    <h1 style=\"font-weight: bold; font-style: italic;\">编程学习平台</h1>\n    <nav>\n      <button style=\"font-weight: bold; font-style: italic;\">课程列表</button>\n      <button style=\"font-weight: bold; font-style: italic;\">学习记录</button>\n      <button style=\"font-weight: bold; font-style: italic;\">个人中心</button>\n    </nav>\n  </header>\n  <section class=\"features\">\n    <div class=\"login-bar\">\n      <input type=\"text\" placeholder=\"请输入用户名\" id=\"usernameInput\">\n      <button id=\"loginBtn\">登录</button>\n    </div>\n    <div class=\"card-container\">\n      <div class=\"card\">\n        <img src=\"\" alt=\"课程图片\">\n        <div class=\"card-content\">\n          <h3>HTML基础</h3>\n          <p>讲师：李老师</p>\n          <p>评分：4.8</p>\n        </div>\n      </div>\n      <div class=\"card\">\n        <img src=\"\" alt=\"课程图片\">\n        <div class=\"card-content\">\n          <h3>CSS进阶</h3>\n          <p>讲师：王老师</p>\n          <p>评分：4.7</p>\n        </div>\n      </div>\n    </div>\n    <div class=\"list-demo\">\n      <h3>课程介绍视频</h3>\n      <video controls width=\"100%\">\n        <source src=\"course-video.mp4\" type=\"video/mp4\">\n        浏览器不支持视频播放。\n      </video>\n    </div>\n  </section>\n  <footer>\n    <p>© 2025 编程学习平台 - 教学用途</p>\n  </footer>\n  <script>\n    const btn = document.getElementById('loginBtn');\n    btn.addEventListener('click', () => {\n      const name = document.getElementById('usernameInput').value;\n      alert(`欢迎, ${name}!`);\n    });\n  </script>\n</body>\n</html>",
+    "css": "",
+    "js": "const btn = document.getElementById('loginBtn');\nbtn.addEventListener('click', () => {\n  const name = document.getElementById('usernameInput').value;\n  alert(`欢迎, ${name}!`);\n});"
+  }
 }
