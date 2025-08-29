@@ -140,6 +140,12 @@ function setupSubmitLogic() {
         submitButton.disabled = true;
         submitButton.textContent = '批改中...';
         
+        // 创建一个函数来恢复按钮状态
+        function restoreButton() {
+            submitButton.disabled = false;
+            submitButton.textContent = originalText;
+        }
+        
         try {
             
             const topicData = getUrlParam('topic');
@@ -156,39 +162,28 @@ function setupSubmitLogic() {
                 }
             };
             
-            await window.apiClient.post('/submission/submit-test2', submissionData);
+            // 提交测试并等待响应
+            const result = await window.apiClient.post('/submission/submit-test2', submissionData);
+            
+            // 设置WebSocket回调来处理结果
             websocket.subscribe("submission_result", (msg) => {
-            console.log("[SubmitModule] 收到最终结果:", msg);
-                    displayTestResult(msg);
-                    if(msg.passed) {
-                        alert("测试完成！即将跳转回到知识图谱界面");
-                        setTimeout(() => { window.location.href = '/pages/knowledge_graph.html'; }, 3000);
-                    } else {
-                         alert("测试未通过，请查看详细结果并继续改进代码。");
-                    }
-        
-             });
+                console.log("[SubmitModule] 收到最终结果:", msg);
+                // 恢复按钮状态
+                restoreButton();
+                displayTestResult(msg);
+                if(msg.passed) {
+                    alert("测试完成！即将跳转回到知识图谱界面");
+                    setTimeout(() => { window.location.href = '/pages/knowledge_graph.html'; }, 3000);
+                } else {
+                     alert("测试未通过，请查看详细结果并继续改进代码。");
+                }
+            });
 
-
-            // if (result.code === 200) {
-            //     displayTestResult(result.data);
-            //     if (result.data.passed) {
-            //         alert("测试完成！即将跳转回到知识图谱界面");
-            //         setTimeout(() => { window.location.href = '/pages/knowledge_graph.html'; }, 3000);
-            //     } else {
-            //         // TODO: 可以考虑直接在这里主动触发AI
-            //         // 测试未通过，给用户一些鼓励和建议
-            //         alert("测试未通过，请查看详细结果并继续改进代码。");
-            //     }
-            // } else {
-            //     throw new Error(result.message || '提交失败');
-            // }
         } catch (error) {
             console.error('提交测试时出错:', error);
+            // 出错时也恢复按钮状态
+            restoreButton();
             alert('提交测试时出错: ' + (error.message || '未知错误'));
-        } finally {
-            submitButton.disabled = false;
-            submitButton.textContent = originalText;
         }
     });
 }
