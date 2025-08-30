@@ -272,7 +272,7 @@ body {
 }
 .panel-header {
     display: flex;
-    max-height: 60px;
+    max-height: 40px; /* 从60px减少到50px，让标题栏更紧凑 */
     justify-content: space-between;
     background: var(--head-background);
     align-items: center;
@@ -491,7 +491,7 @@ body {
     display: flex;
     gap: var(--spacing-md);
     height: auto;
-    min-height: 240px;
+    min-height: 200px; /* 减少最小高度从240px到200px */
     align-items: stretch;
 }
     /* 合并的预览和代码展示面板样式 */
@@ -503,28 +503,61 @@ body {
         min-height: 240px;
     }
     
-    /* 预览区域样式 */
+    /* 新的示例页面探索面板样式 */
+    .example-exploration-panel {
+        flex: 1 1 0;
+        min-height: 200px; /* 减少最小高度从240px到200px */
+        border-radius: var(--border-radius-lg); /* 确保整个面板有圆角 */
+        overflow: hidden; /* 确保内容不会超出圆角边界 */
+    }
+    
+    /* 探索内容区域 - 水平布局：左侧预览 + 右侧代码 */
+    .exploration-content {
+        display: flex;
+        height: calc(100% - 60px); /* 减去标题栏高度 */
+        border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
+        overflow: hidden;
+    }
+    
+    /* 修复代码区域内的info-content样式 */
+    .code-section .info-content {
+        flex: 1;
+        padding: var(--spacing-lg) var(--spacing-xl);
+        overflow-y: auto;
+        min-height: 0; /* 允许flex子元素收缩 */
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* 预览区域样式 - 适应新的exploration-content布局 */
     .preview-section {
         flex: 2 1 0;
         min-width: 300px;
         box-sizing: border-box;
+        background: var(--content-background);
     }
     
-    /* 代码展示区域样式 */
+    /* 代码展示区域样式 - 适应新的exploration-content布局 */
     .code-section {
         flex: 1 1 0;
         overflow: hidden;
         min-width: 250px;
+        background: var(--content-background);
+        border-left: 1px solid var(--border-color); /* 添加分隔线 */
+        display: flex;
+        flex-direction: column;
     }
 
     /* 代码展示面板底部区域 */
     .code-panel-footer {
         margin-top: auto;
-        padding: var(--spacing-lg);
+        padding: var(--spacing-lg) calc(var(--spacing-lg) - var(--spacing-xs)) var(--spacing-lg) var(--spacing-lg); /* 减少右侧padding，让按钮更靠右 */
         background: var(--content-background);
         display: flex;
         flex-direction: column;
         align-items: flex-end;
+        border-top: 1px solid var(--border-color); /* 添加顶部分隔线 */
+        gap: var(--spacing-sm); /* 在按钮区域和开关区域之间添加间隔 */
     }
 
     .selector-controls {
@@ -532,11 +565,13 @@ body {
         gap: var(--spacing-sm);
         margin-bottom: var(--spacing-md);
         justify-content: flex-end;
+        align-items: center; /* 确保按钮垂直对齐 */
     }
 
     .selector-controls .btn {
         flex: 0 0 auto;
         min-width: 100px;
+        margin: 0; /* 移除所有margin，使用gap控制间距 */
     }
 
     /* 聊天面板样式 */
@@ -650,36 +685,98 @@ body {
         background: var(--panel-background);
     }
 
+    /* 等级容器样式 */
+    .levels-container {
+        height: 100%; /* 占满父容器高度 */
+        display: flex;
+        align-items: center; /* 垂直居中 */
+        justify-content: center; /* 水平居中 */
+        padding: var(--spacing-md);
+        box-sizing: border-box;
+    }
+
     /* 等级流展示 */
     .levels-flow {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: var(--spacing-md);
-        padding: var(--spacing-md) 0 var(--spacing-lg) 0;
+        /* 移除justify-content，让flex和gap自然控制分布 */
+        gap: var(--spacing-md); /* 减少卡片间距，让卡片更宽 */
+        width: 100%; /* 占满整个容器宽度 */
+        height: 75%; /* 增加高度比例到75% */
+        max-height: 250px; /* 适当增加最大高度 */
+        min-height: 130px; /* 适当增加最小高度 */
+        box-sizing: border-box;
     }
 
     .levels-flow .arrow {
-        font-size: 22px;
+        font-size: calc(var(--font-size-xl) + 4px); /* 响应式箭头大小 */
         color: var(--text-lighter);
-        flex: 0 0 auto;
+        flex: 0 0 var(--spacing-lg); /* 减小箭头宽度，给卡片更多空间 */
+        text-align: center; /* 箭头居中 */
         line-height: 1;
     }
 
     .level-card {
-        flex: 1 1 0;
+        flex: 1 1 0; /* 保持弹性布局 */
         background: var(--card-bg);
         border: 1px solid var(--border-color);
         border-radius: var(--border-radius-lg);
-        padding: var(--spacing-lg);
+        padding: var(--spacing-md); /* 默认使用collapsed状态的padding，避免刷新时闪烁 */
         display: flex;
         flex-direction: column;
-        gap: var(--spacing-sm);
-        min-height: 120px;
+        gap: var(--spacing-xs); /* 减少内部元素间距从spacing-sm到spacing-xs */
+        /* 响应式高度：使用父容器的100%高度 */
+        height: 100%;
+        min-height: 100px; /* 最小高度保障 */
         cursor: pointer;
         transition: all 0.3s ease;
         position: relative;
         z-index: 50; /* 确保卡片在最上层 */
+        /* 强制所有卡片等宽 */
+        width: 0; /* 强制宽度由flex计算 */
+        box-sizing: border-box;
+    }
+
+    /* 在小屏幕上调整卡片布局 */
+    @media (max-width: 1024px) {
+        .levels-flow {
+            width: 100%; /* 小屏幕上也占满宽 */
+            height: 80%; /* 增加高度比例 */
+            gap: var(--spacing-md); /* 减少间距 */
+        }
+        
+        .level-card {
+            /* 保持响应式高度 */
+            min-height: 90px;
+        }
+        
+        .levels-flow .arrow {
+            font-size: var(--font-size-lg); /* 减小箭头大小 */
+            flex: 0 0 var(--spacing-lg); /* 减小箭头宽度 */
+        }
+    }
+
+    @media (max-width: 768px) {
+        .levels-flow {
+            flex-direction: column;
+            width: 100%; /* 手机上也占满宽 */
+            height: 85%; /* 增加高度比例 */
+            gap: var(--spacing-sm); /* 进一步减小间距 */
+        }
+        
+        .level-card {
+            /* 在垂直布局中使用固定高度 */
+            width: 100%;
+            height: auto;
+            min-height: 90px;
+            flex: 0 0 auto; /* 不拉伸 */
+        }
+        
+        .levels-flow .arrow {
+            transform: rotate(90deg);
+            font-size: var(--font-size-base);
+            flex: 0 0 var(--spacing-md);
+        }
     }
 
     .level-card:hover {
@@ -688,21 +785,31 @@ body {
     }
 
     .level-card.collapsed {
-        min-height: 80px;
+        /* collapsed状态使用默认样式，不需要特别设置高度 */
         padding: var(--spacing-md);
     }
 
     .level-card.expanded {
+        /* 展开时使用更大的高度和内边距 */
+        height: auto;
         min-height: 200px;
+        max-height: 400px; /* 限制最大高度 */
+        padding: var(--spacing-lg); /* 展开时使用更大的padding */
         z-index: 10;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     }
 
     .level-header {
         display: flex;
+        flex-direction: column;
         justify-content: center;
         align-items: center;
         width: 100%;
+        flex: 0 0 auto; /* 不让header根据内容拉伸，保持固定大小 */
+        text-align: center;
+        /* 响应式高度：根据容器大小自适应 */
+        min-height: calc(var(--spacing-lg) * 2);
+        padding: 0; /* 减少内边距 */
     }
 
     .level-content {
@@ -734,14 +841,35 @@ body {
         color: #2c3e50;
     }
 
+    .level-description {
+        font-size: var(--font-size-sm);
+        color: var(--text-light);
+        text-align: center;
+        margin: calc(var(--spacing-xs) / 2) 0; /* 减小上下边距 */
+        line-height: 1.4;
+        flex: 0 0 auto; /* 不让描述拉伸 */
+        /* 响应式高度：自适应内容 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden; /* 超出部分隐藏 */
+        padding: 0 var(--spacing-xs); /* 左右内边距 */
+    }
+
     .click-hint {
         font-size: var(--font-size-xs);
         color: var(--primary-color);
         text-align: center;
-        margin-top: var(--spacing-sm);
+        margin-top: auto; /* 自动推到底部 */
+        padding: var(--spacing-xs) 0;
         opacity: 0.8;
         font-weight: 500;
         transition: all 0.3s ease;
+        flex: 0 0 auto; /* 不让提示拉伸 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-xs);
     }
 
     .level-card.collapsed .click-hint {
@@ -1424,10 +1552,10 @@ body {
 
 .btn-select {
     padding: var(--spacing-sm) var(--spacing-md);
-    margin-right: var(--spacing-sm);
     font-size: var(--font-size-sm);
     background-color: var(--primary-color);
     color: white;
+    margin: 0; /* 移除margin，避免位置偏移 */
 }
 .btn-select:hover { 
     background-color: var(--primary-hover);
@@ -1436,11 +1564,39 @@ body {
 .btn-stop-selector {
     background: var(--error-color);
     border-color: var(--error-color);
-    color: #fff;
+    color: white;
+    margin: 0;
 }
 .btn-stop-selector:hover {
     background: #dc2626;
     transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3); /* 与清除按钮保持一致 */
+}
+
+/* 询问AI按钮样式 */
+.btn-ai {
+    background: linear-gradient(90deg, var(--accent-color), var(--secondary-color)); /* 使用项目已定义的紫色系列 */
+    border-color: var(--accent-color);
+    color: white;
+    margin: 0;
+}
+.btn-ai:hover {
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(167, 139, 250, 0.3); /* 使用accent-color的透明度 */
+}
+
+/* 清除选择按钮样式 - 与停止选择完全一致 */
+.btn-clear {
+    background: var(--error-color); /* 与停止选择相同 */
+    border-color: var(--error-color);
+    color: white;
+    margin: 0;
+}
+.btn-clear:hover {
+    background: #dc2626; /* 与停止按钮悬停效果完全一致 */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3); /* 与停止按钮阴影效果完全一致 */
 }
 /* 返回按钮样式 */
 .back-button {
@@ -1550,6 +1706,21 @@ body {
     
     .preview-container {
         height: 150px;
+    }
+    
+    /* 优化小屏幕上的标签显示 */
+    .element-info {
+        gap: 4px; /* 减小间距 */
+    }
+    
+    .element-info span {
+        font-size: 10px; /* 减小字体 */
+        padding: 2px 6px; /* 减小内边距 */
+        max-width: 120px; /* 限制最大宽度 */
+    }
+    
+    .code-header h4 {
+        font-size: var(--font-size-sm); /* 减小标题字体 */
     }
 }
 
@@ -1713,8 +1884,8 @@ html.sw-selector-active .clickable {
 /* 代码面板样式 */
 .code-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column; /* 改为垂直布局，给标签更多空间 */
+    gap: var(--spacing-sm); /* 添加间距 */
     margin-bottom: var(--spacing-md);
     padding-bottom: var(--spacing-sm);
     border-bottom: 1px solid var(--border-color);
@@ -1729,8 +1900,11 @@ html.sw-selector-active .clickable {
 
 .element-info {
     display: flex;
+    flex-wrap: wrap; /* 允许标签换行 */
     gap: var(--spacing-xs);
     align-items: center;
+    max-width: 100%; /* 限制最大宽度 */
+    overflow-wrap: break-word; /* 允许单词换行 */
 }
 
 .element-info span {
@@ -1738,6 +1912,11 @@ html.sw-selector-active .clickable {
     border-radius: var(--border-radius-sm);
     font-size: var(--font-size-xs);
     font-weight: 500;
+    white-space: nowrap; /* 保持单个标签不换行 */
+    flex-shrink: 0; /* 防止标签被压缩 */
+    max-width: 100%; /* 限制最大宽度 */
+    overflow: hidden; /* 隐藏超出部分 */
+    text-overflow: ellipsis; /* 超出时显示省略号 */
 }
 
 .tag-name {
@@ -1753,6 +1932,12 @@ html.sw-selector-active .clickable {
 .element-class {
     background-color: #e8f5e8;
     color: #388e3c;
+}
+
+.element-class-more {
+    background-color: #fff3e0;
+    color: #f57c00;
+    font-size: 10px;
 }
 
 .code-block {
