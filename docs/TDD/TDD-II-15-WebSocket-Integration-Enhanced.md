@@ -26,7 +26,7 @@
 *   **方法:** WebSocket Upgrade
 *   **路径:** `/ws/user/{participant_id}`
 *   **用途:** 为已认证的用户提供一个持久的实时通信通道。
-*   **认证:** 连接请求必须携带有效的 JWT Token，后端需验证 `participant_id` 与 Token 中的用户信息是否匹配。
+
 
 ##### **2.2. WebSocket 消息格式 (Schemas)**
 
@@ -216,7 +216,7 @@ graph TD
 ##### **4.2. 连接管理机制**
 
 *   **连接初始化**: 在用户成功登录并获取到 `participant_id` 后，初始化WebSocket连接。
-*   **认证机制**: 连接URL包含JWT token作为查询参数: `ws://host:port/ws/user/{participant_id}?token={jwt_token}`
+*   **认证机制**: 连接URL: `ws://host:port/ws/user/{participant_id}`
 *   **连接状态管理**: 维护连接状态（CONNECTING, OPEN, CLOSING, CLOSED），提供状态查询接口。
 *   **自动重连**: 实现指数退避算法的自动重连机制，最大重试次数为5次。
 
@@ -261,7 +261,7 @@ graph TD
 *   **问题描述**: 当前前端为多页面应用 (MPA)，当用户在不同页面间跳转时（例如，从知识图谱页面到测试页面），浏览器会进行整页刷新，导致当前页面的 WebSocket 连接被销毁。
 
 *   **选定策略：按页重连 (Per-Page Reconnection)**
-    *   **工作原理**: 当新页面加载时，其 JavaScript 代码将重新执行。我们封装的 `WebSocketClient` 模块会检测到当前无活动连接，并利用存储在 `localStorage` 中的用户凭证（`participant_id` 和 JWT Token）自动发起一个新的 WebSocket 连接。
+    *   **工作原理**: 当新页面加载时，其 JavaScript 代码将重新执行。我们封装的 `WebSocketClient` 模块会检测到当前无活动连接，并利用存储在 `localStorage` 中的用户凭证（`participant_id`）自动发起一个新的 WebSocket 连接。
     *   **选择原因 (Why this approach?)**:
         *   **简单且可靠**: 此方案实现简单，无需引入复杂的前端技术栈（如 Service Worker 或 Redux），与现有前端架构完全兼容。对于核心业务流（在同一页面发起任务并接收结果），此方案的可靠性非常高。
         *   **成本效益高**: 在当前项目阶段，这是一个成本效益最高的解决方案。它以最小的改动满足了核心需求，避免了大规模的前端架构重构。
@@ -334,6 +334,10 @@ graph TD
     *   集成WebSocket客户端，替换原有的轮询机制
     *   订阅 `submission_progress` 和 `submission_result` 类型消息
     *   实时更新测试进度和结果显示
+
+7. **`backend/app/core/redis_subscriber.py`**
+    *   订阅redeis的消息
+
 
 ---
 

@@ -5,6 +5,10 @@ from app.services.sandbox_service import sandbox_service
 from app.services.content_loader import load_json_content
 from app.schemas.user_progress import UserProgressCreate
 from app.tasks.db_tasks import save_progress_task
+from app.config.dependency_injection import get_redis_client
+from app.schemas.chat import ChatRequest,SocketResponse2
+from datetime import datetime, timezone
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,6 +19,7 @@ def process_submission_task(self, submission_data: dict):
     处理代码提交的重量级任务：评测、更新BKT、触发快照。
     """
     submission_in = TestSubmissionRequest(**submission_data)
+    logger.info("处理代码提交任务: %s", submission_in)
     db = SessionLocal()
     user_state_service = get_user_state_service()
 
@@ -50,6 +55,15 @@ def process_submission_task(self, submission_data: dict):
                 args=[progress_data.model_dump()],
                 queue='db_writer_queue'
             )
+        message = SocketResponse2(
+            type="submission_result",
+            taskid=self.request.id,
+            timestamp=datetime.now(timezone.utc),
+            message=evaluation_result,
+        )
+        redis_client = get_redis_client()
+        redis_client.publish(f"ws:user:{submission_data['participant_id']}",  message.model_dump_json())
+        logger.info("测评结果已Publish到Redis")
 
         # 5. 返回评测结果
         return evaluation_result

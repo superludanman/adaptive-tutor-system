@@ -106,3 +106,4 @@ celery>=5.5.3
 redis[hiredis,json]>=5.0.0
 gevent
 pytz
+aioredis

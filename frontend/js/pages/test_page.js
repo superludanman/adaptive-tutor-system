@@ -4,6 +4,7 @@ import { marked } from "https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js";
 import { setupHeaderTitle, setupBackButton, getUrlParam, debugUrlParams, getReturnUrl } from '../modules/navigation.js';
 import tracker from '../modules/behavior_tracker.js';
 import chatModule from '../modules/chat.js';
+import websocket from '../modules/websocket_client.js';
 
 tracker.init({
     user_idle: true,
@@ -19,29 +20,29 @@ async function initializePage() {
         }
     }
     // 获取并解密URL参数
-    // 获取URL参数（带错误处理）
-    const topicData = getUrlParam('topic');
-
-    if (topicData && topicData.id) {
-        console.log('测试主题ID:', topicData.id, '有效期:', topicData.isValid ? '有效' : '已过期');
-
-        // 更新页面标题
-        document.getElementById('headerTitle').textContent = `测试 - ${topicData.id}`;
-
-        // 即使过期也继续加载内容，但提示用户
-        if (!topicData.isValid) {
-            console.warn('参数已过期，但仍继续加载内容');
+     // 获取URL参数（带错误处理）
+        const topicData = getUrlParam('topic');
+        
+        if (topicData && topicData.id) {
+            console.log('测试主题ID:', topicData.id, '有效期:', topicData.isValid ? '有效' : '已过期');
+                
+            // 更新页面标题
+            document.getElementById('headerTitle').textContent = `测试 - ${topicData.id}`;
+            
+            // 即使过期也继续加载内容，但提示用户
+            if (!topicData.isValid) {
+               console.warn('参数已过期，但仍继续加载内容');
+            }
+                
+            // 加载对应的测试内容
+            chatModule.init('test', topicData.id);
+        } else {
+            console.warn('未找到有效的主题参数，使用默认内容');
+            console.log('加载默认测试内容');
         }
-
-        // 加载对应的测试内容
-        chatModule.init('test', topicData.id);
-    } else {
-        console.warn('未找到有效的主题参数，使用默认内容');
-        console.log('加载默认测试内容');
-    }
-
-    let topicId = topicData && topicData.id ? topicData.id : null;
-
+    
+    let topicId = topicData.id;
+    
     // 如果没有topic参数，且查询字符串只有一个值，则使用该值
     if (!topicId) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -79,6 +80,14 @@ async function initializePage() {
     } catch (error) {
         console.error('初始化页面时出错:', error);
         alert('无法加载测试任务: ' + (error.message || '未知错误'));
+    }
+
+    try{
+        websocket.connect();
+        console.log('[MainApp] WebSocket模块初始化完成');
+    }
+    catch(error){
+        console.error('[MainApp] WebSocket模块初始化失败:', error);
     }
 }
 
@@ -278,10 +287,18 @@ function setupSubmitLogic() {
         submitButton.disabled = true;
         submitButton.textContent = '批改中...';
 
+
+        // 创建一个函数来恢复按钮状态
+        function restoreButton() {
+            submitButton.disabled = false;
+            submitButton.textContent = originalText;
+        }
+
         try {
             // 使用已解密的topicId而不是直接从URL获取加密参数
             const topicData = getUrlParam('topic');
             const topicId = topicData && topicData.id ? topicData.id : null;
+
             if (!topicId) throw new Error("主题ID无效。");
 
             // 提交前的完整行为分析
@@ -293,6 +310,7 @@ function setupSubmitLogic() {
                 tracker._submitAllData();
             }
 
+            console.log('提交测试，主题ID:', topicId);
             const submissionData = {
                 topic_id: topicId,
                 code: {
@@ -309,17 +327,17 @@ function setupSubmitLogic() {
                     problem_count: finalBehaviorAnalysis.problemEventsCount || 0
                 }
             };
+            
+            // 提交测试并等待响应
+            const result = await window.apiClient.post('/submission/submit-test2', submissionData);
 
-            const result = await window.apiClient.post('/submission/submit-test', submissionData);
-
-            if (result.code === 200) {
-                displayTestResult(result.data);
-                if (result.data.passed) {
-                    tracker.logEvent('test_passed', {
-                        topic_id: topicId,
-                        edit_count: finalBehaviorAnalysis.totalSignificantEdits,
-                        problem_count: finalBehaviorAnalysis.problemEventsCount
-                    });
+            // 设置WebSocket回调来处理结果
+            websocket.subscribe("submission_result", (msg) => {
+                console.log("[SubmitModule] 收到最终结果:", msg);
+                // 恢复按钮状态
+                restoreButton();
+                displayTestResult(msg);
+                if(msg.passed) {
                     alert("测试完成！即将跳转回到知识图谱界面");
                     setTimeout(() => { window.location.href = '/pages/knowledge_graph.html'; }, 3000);
                 } else {
@@ -333,19 +351,17 @@ function setupSubmitLogic() {
                     // 测试未通过，给用户一些鼓励和建议
                     alert("测试未通过，请查看详细结果并继续改进代码。");
                 }
-            } else {
-                throw new Error(result.message || '提交失败');
-            }
+            });
+
         } catch (error) {
             console.error('提交测试时出错:', error);
             tracker.logEvent('submission_error', {
                 error_message: error.message,
                 timestamp: new Date().toISOString()
             });
+            // 出错时也恢复按钮状态
+            restoreButton();
             alert('提交测试时出错: ' + (error.message || '未知错误'));
-        } finally {
-            submitButton.disabled = false;
-            submitButton.textContent = originalText;
         }
     });
 }
